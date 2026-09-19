@@ -580,12 +580,12 @@
         <span id="toast-text">ทำรายการเรียบร้อย</span>
     </div>
 
-    <!-- Firebase Realtime Database SDK (Modular Script) -->
+    <!-- Firebase Realtime Database SDK & Full Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // *** ใส่ค่า Config จาก Firebase Console ของคุณที่นี่ ***
+        // *** วางค่า Firebase Config ของคุณที่นี่ ***
         const firebaseConfig = {
             apiKey: "YOUR_API_KEY",
             authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -642,7 +642,7 @@
         window.parsedImportData = [];
         window.isSidebarOpen = false;
 
-        // References to Realtime Database Nodes
+        // Database References
         const itemsRef = ref(db, 'stock_items');
         const logsRef = ref(db, 'stock_logs');
 
@@ -652,15 +652,14 @@
             if (data) {
                 window.items = Object.values(data);
             } else {
-                // Initialize default data if DB is empty
                 set(itemsRef, DEFAULT_ITEMS);
                 window.items = DEFAULT_ITEMS;
             }
-            if (window.currentTab === 'movement') updateMovementItemOptions();
-            renderApp();
+            if (window.currentTab === 'movement') window.updateMovementItemOptions();
+            window.renderApp();
         });
 
-        // REALTIME LISTENER for Movement Logs
+        // REALTIME LISTENER for Logs
         onValue(logsRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -668,10 +667,10 @@
             } else {
                 window.movementLogs = [];
             }
-            if (window.currentTab === 'movement') renderMovementLogs();
+            if (window.currentTab === 'movement') window.renderMovementLogs();
         });
 
-        // Write Operations to Database
+        // Firebase Operations
         window.saveItemsToFirebase = function() {
             set(itemsRef, window.items);
         };
@@ -684,8 +683,8 @@
             if (confirm('คุณต้องการรีเซ็ตข้อมูลสต็อกทั้งหมดกลับเป็นค่าเริ่มต้น Realtime หรือไม่?')) {
                 set(itemsRef, DEFAULT_ITEMS);
                 set(logsRef, null);
-                showToast('รีเซ็ตข้อมูลบน Firebase เรียบร้อยแล้ว', 'info');
-                closeSidebarOnMobile();
+                window.showToast('รีเซ็ตข้อมูลบน Firebase เรียบร้อยแล้ว', 'info');
+                window.closeSidebarOnMobile();
             }
         };
 
@@ -694,11 +693,9 @@
                 set(logsRef, null);
             }
         };
-    </script>
 
-    <script>
-        // UI Logic & View Handlers
-        function toggleSidebar() {
+        // UI & App Logic Functions
+        window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
             window.isSidebarOpen = !window.isSidebarOpen;
@@ -710,15 +707,15 @@
                 sidebar.classList.add('-translate-x-full');
                 mainContent.classList.remove('sidebar-open-layout');
             }
-        }
+        };
 
-        function closeSidebarOnMobile() {
+        window.closeSidebarOnMobile = function() {
             if (window.innerWidth < 1024 && window.isSidebarOpen) {
-                toggleSidebar();
+                window.toggleSidebar();
             }
-        }
+        };
 
-        function switchTab(tab) {
+        window.switchTab = function(tab) {
             window.currentTab = tab;
 
             ['dashboard', 'medical', 'office', 'movement'].forEach(t => {
@@ -738,8 +735,8 @@
                 document.getElementById('view-dashboard').classList.remove('hidden');
             } else if (tab === 'movement') {
                 document.getElementById('view-movement').classList.remove('hidden');
-                updateMovementItemOptions();
-                renderMovementLogs();
+                window.updateMovementItemOptions();
+                window.renderMovementLogs();
             } else {
                 document.getElementById('view-inventory').classList.remove('hidden');
 
@@ -763,18 +760,18 @@
                 document.getElementById('status-filter').value = 'all';
             }
 
-            renderApp();
-            closeSidebarOnMobile();
-        }
+            window.renderApp();
+            window.closeSidebarOnMobile();
+        };
 
-        function renderApp() {
-            updateSidebarBadges();
-            if (window.currentTab === 'dashboard') renderDashboard();
-            else if (window.currentTab === 'movement') renderMovementLogs();
-            else renderInventoryTable();
-        }
+        window.renderApp = function() {
+            window.updateSidebarBadges();
+            if (window.currentTab === 'dashboard') window.renderDashboard();
+            else if (window.currentTab === 'movement') window.renderMovementLogs();
+            else window.renderInventoryTable();
+        };
 
-        function updateSidebarBadges() {
+        window.updateSidebarBadges = function() {
             const medItems = window.items.filter(i => i.category === 'medical');
             const offItems = window.items.filter(i => i.category === 'office');
 
@@ -786,9 +783,9 @@
 
             document.getElementById('quick-status-reorder').innerText = reorderCount;
             document.getElementById('quick-status-warning').innerText = warningCount;
-        }
+        };
 
-        function renderDashboard() {
+        window.renderDashboard = function() {
             const totalCount = window.items.length;
             const reorderItems = window.items.filter(i => i.quantity < i.minQuantity);
             const warningItems = window.items.filter(i => i.quantity >= i.minQuantity && i.quantity <= i.minQuantity * 1.2);
@@ -801,12 +798,12 @@
 
             const medItems = window.items.filter(i => i.category === 'medical');
             document.getElementById('dash-med-total').innerText = medItems.length;
-            document.getElementById('dash-med-qty').innerText = medItems.reduce((a, b) => a + b.quantity, 0).toLocaleString();
+            document.getElementById('dash-med-qty').innerText = medItems.reduce((a, b) => a + Number(b.quantity), 0).toLocaleString();
             document.getElementById('dash-med-alert').innerText = medItems.filter(i => i.quantity < i.minQuantity).length;
 
             const offItems = window.items.filter(i => i.category === 'office');
             document.getElementById('dash-off-total').innerText = offItems.length;
-            document.getElementById('dash-off-qty').innerText = offItems.reduce((a, b) => a + b.quantity, 0).toLocaleString();
+            document.getElementById('dash-off-qty').innerText = offItems.reduce((a, b) => a + Number(b.quantity), 0).toLocaleString();
             document.getElementById('dash-off-alert').innerText = offItems.filter(i => i.quantity < i.minQuantity).length;
 
             const alertContainer = document.getElementById('dashboard-alert-list');
@@ -841,9 +838,9 @@
                     </div>
                 `;
             }).join('');
-        }
+        };
 
-        function renderInventoryTable() {
+        window.renderInventoryTable = function() {
             const tbody = document.getElementById('inventory-table-body');
             const searchValue = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
             const statusFilter = document.getElementById('status-filter')?.value || 'all';
@@ -916,21 +913,21 @@
                     </tr>
                 `;
             }).join('');
-        }
+        };
 
-        function filterItems() { renderInventoryTable(); }
+        window.filterItems = function() { window.renderInventoryTable(); };
 
-        function quickNavToMove(itemId) {
+        window.quickNavToMove = function(itemId) {
             const item = window.items.find(i => i.id === itemId);
             if (!item) return;
-            switchTab('movement');
-            toggleMoveMode('manual');
+            window.switchTab('movement');
+            window.toggleMoveMode('manual');
             document.getElementById('move-category').value = item.category;
-            updateMovementItemOptions();
+            window.updateMovementItemOptions();
             document.getElementById('move-item-id').value = item.id;
-        }
+        };
 
-        function toggleMoveMode(mode) {
+        window.toggleMoveMode = function(mode) {
             const btnManual = document.getElementById('mode-btn-manual');
             const btnImport = document.getElementById('mode-btn-import');
             const panelManual = document.getElementById('panel-manual-form');
@@ -964,9 +961,9 @@
                     importPreviewTable.classList.remove('hidden');
                 }
             }
-        }
+        };
 
-        function updateMovementItemOptions() {
+        window.updateMovementItemOptions = function() {
             const category = document.getElementById('move-category').value;
             const select = document.getElementById('move-item-id');
             const catItems = window.items.filter(i => i.category === category);
@@ -974,9 +971,9 @@
             select.innerHTML = catItems.map(i => 
                 `<option value="${i.id}">${i.name} (คงเหลือ: ${i.quantity} ${i.unit})</option>`
             ).join('');
-        }
+        };
 
-        function handleMovementSubmit(event) {
+        window.handleMovementSubmit = function(event) {
             event.preventDefault();
 
             const itemId = parseInt(document.getElementById('move-item-id').value, 10);
@@ -1000,7 +997,6 @@
                 window.items[itemIndex].quantity -= amount;
             }
 
-            // Sync with Firebase Realtime Database
             window.saveItemsToFirebase();
             window.addLogToFirebase({
                 timestamp: new Date().toLocaleString('th-TH'),
@@ -1014,15 +1010,15 @@
             document.getElementById('move-amount').value = 1;
             document.getElementById('move-note').value = '';
 
-            showToast(`บันทึกการ${moveType === 'in' ? 'รับเข้า' : 'เบิกออก'} ${item.name} เรียบร้อย`, 'success');
-        }
+            window.showToast(`บันทึกการ${moveType === 'in' ? 'รับเข้า' : 'เบิกออก'} ${item.name} เรียบร้อย`, 'success');
+        };
 
-        async function handleFileUpload(event) {
+        window.handleFileUpload = async function(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const fileName = file.name.toLowerCase();
-            showToast('กำลังอ่านไฟล์...', 'info');
+            window.showToast('กำลังอ่านไฟล์...', 'info');
 
             try {
                 if (fileName.endsWith('.pdf')) {
@@ -1036,7 +1032,7 @@
                 console.error(error);
                 alert('เกิดข้อผิดพลาดในการอ่านไฟล์ กรุณาตรวจสอบรูปแบบไฟล์อีกครั้ง');
             }
-        }
+        };
 
         async function parsePDFFile(file) {
             const arrayBuffer = await file.arrayBuffer();
@@ -1118,11 +1114,11 @@
                 return;
             }
 
-            renderImportPreview();
-            showToast(`อ่านไฟล์สำเร็จ พบ ${window.parsedImportData.length} รายการ`, 'success');
+            window.renderImportPreview();
+            window.showToast(`อ่านไฟล์สำเร็จ พบ ${window.parsedImportData.length} รายการ`, 'success');
         }
 
-        function renderImportPreview() {
+        window.renderImportPreview = function() {
             document.getElementById('log-header').classList.add('hidden');
             document.getElementById('history-log-table-wrapper').classList.add('hidden');
             document.getElementById('import-preview-header').classList.remove('hidden');
@@ -1149,19 +1145,19 @@
                     </td>
                 </tr>
             `).join('');
-        }
+        };
 
-        function updateImportAmount(idx, val) {
+        window.updateImportAmount = function(idx, val) {
             if (window.parsedImportData[idx]) window.parsedImportData[idx].amount = parseInt(val, 10) || 1;
-        }
+        };
 
-        function removeImportItem(idx) {
+        window.removeImportItem = function(idx) {
             window.parsedImportData.splice(idx, 1);
-            if (window.parsedImportData.length === 0) toggleMoveMode('manual');
-            else renderImportPreview();
-        }
+            if (window.parsedImportData.length === 0) window.toggleMoveMode('manual');
+            else window.renderImportPreview();
+        };
 
-        function confirmImportBatch() {
+        window.confirmImportBatch = function() {
             if (window.parsedImportData.length === 0) return;
 
             const actionType = document.querySelector('input[name="import-action-type"]:checked').value;
@@ -1202,11 +1198,11 @@
             document.getElementById('file-input').value = '';
             document.getElementById('import-doc-ref').value = '';
 
-            toggleMoveMode('manual');
-            showToast(`ปรับสต็อกจากไฟล์สำเร็จ (${updatedCount} รายการ)`, 'success');
-        }
+            window.toggleMoveMode('manual');
+            window.showToast(`ปรับสต็อกจากไฟล์สำเร็จ (${updatedCount} รายการ)`, 'success');
+        };
 
-        function renderMovementLogs() {
+        window.renderMovementLogs = function() {
             const tbody = document.getElementById('movement-history-body');
             if (window.movementLogs.length === 0) {
                 tbody.innerHTML = `
@@ -1234,20 +1230,20 @@
                     <td class="py-2.5 px-3 text-xs text-slate-500">${log.note}</td>
                 </tr>
             `).join('');
-        }
+        };
 
-        function deleteItem(id) {
+        window.deleteItem = function(id) {
             const item = window.items.find(i => i.id === id);
             if (!item) return;
 
             if (confirm(`คุณต้องการลบรายการ "${item.name}" ใช่หรือไม่?`)) {
                 window.items = window.items.filter(i => i.id !== id);
                 window.saveItemsToFirebase();
-                showToast(`ลบรายการ "${item.name}" แล้ว`, 'info');
+                window.showToast(`ลบรายการ "${item.name}" แล้ว`, 'info');
             }
-        }
+        };
 
-        function openModal(mode, id = null) {
+        window.openModal = function(mode, id = null) {
             const modal = document.getElementById('item-modal');
             const modalTitle = document.getElementById('modal-title');
             const form = document.getElementById('item-form');
@@ -1272,13 +1268,13 @@
             }
 
             modal.classList.remove('hidden');
-        }
+        };
 
-        function closeModal() {
+        window.closeModal = function() {
             document.getElementById('item-modal').classList.add('hidden');
-        }
+        };
 
-        function handleFormSubmit(event) {
+        window.handleFormSubmit = function(event) {
             event.preventDefault();
 
             const idVal = document.getElementById('modal-item-id').value;
@@ -1293,19 +1289,19 @@
                 const index = window.items.findIndex(i => i.id === id);
                 if (index !== -1) {
                     window.items[index] = { id, category, name, unit, quantity, minQuantity };
-                    showToast(`แก้ไข "${name}" เรียบร้อยแล้ว`, 'success');
+                    window.showToast(`แก้ไข "${name}" เรียบร้อยแล้ว`, 'success');
                 }
             } else {
                 const newId = window.items.length > 0 ? Math.max(...window.items.map(i => i.id)) + 1 : 1;
                 window.items.push({ id: newId, category, name, unit, quantity, minQuantity });
-                showToast(`เพิ่มสินค้า "${name}" สำเร็จ`, 'success');
+                window.showToast(`เพิ่มสินค้า "${name}" สำเร็จ`, 'success');
             }
 
             window.saveItemsToFirebase();
-            closeModal();
-        }
+            window.closeModal();
+        };
 
-        function showToast(message, type = 'success') {
+        window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast-message');
             const toastText = document.getElementById('toast-text');
             const toastIcon = document.getElementById('toast-icon');
@@ -1322,7 +1318,7 @@
                 toast.classList.remove('translate-y-0', 'opacity-100');
                 toast.classList.add('translate-y-20', 'opacity-0');
             }, 3000);
-        }
+        };
     </script>
 </body>
 </html>
