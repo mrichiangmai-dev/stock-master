@@ -59,6 +59,9 @@
             padding-left: 18rem; /* 288px (w-72) */
         }
     </style>
+    <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
 
@@ -1385,5 +1388,59 @@
             }, 3000);
         }
     </script>
+    <script>
+  // ค่า Config เฉพาะของโปรเจกต์คุณ (อ้างอิงจากคีย์ของคุณ)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYPmr7XU-f4DF32rrgb3s8mWkvJXWUVc8",
+    authDomain: "stockmaster-app-82230.firebaseapp.com",
+    databaseURL: "https://stockmaster-app-82230-default-rtdb.firebaseio.com",
+    projectId: "stockmaster-app-82230",
+    storageBucket: "stockmaster-app-82230.firebasestorage.app",
+    messagingSenderId: "738518628930",
+    appId: "1:738518628930:web:98a870897191defc67cbdb",
+    measurementId: "G-FCKPX654NS"
+  };
+
+  // เริ่มต้นเชื่อมต่อ Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // ฟังก์ชันซิงค์ข้อมูลแบบ Real-time
+  function setupRealtimeListener() {
+      db.ref('stockmaster_items').on('value', (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+              items = data;
+          } else {
+              items = JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+              saveItemsStorage();
+          }
+          if (typeof renderApp === 'function') renderApp();
+      });
+
+      db.ref('stockmaster_logs').on('value', (snapshot) => {
+          const data = snapshot.val();
+          movementLogs = data ? data : [];
+          if (typeof currentTab !== 'undefined' && currentTab === 'movement' && typeof renderMovementLogs === 'function') {
+              renderMovementLogs();
+          }
+          if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+      });
+  }
+
+  // ฟังก์ชันบันทึกข้อมูลขึ้น Cloud
+  function saveItemsStorage() {
+      db.ref('stockmaster_items').set(items);
+  }
+
+  function saveLogsStorage() {
+      db.ref('stockmaster_logs').set(movementLogs);
+  }
+
+  // เรียกทำงานเมื่อโหลดหน้าเว็บ
+  window.addEventListener('DOMContentLoaded', () => {
+      setupRealtimeListener();
+  });
+</script>
 </body>
 </html>
