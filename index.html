@@ -18,7 +18,7 @@
 
     <!-- PDF.js Library for Client-side PDF Reading -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <!-- SheetJS Library for Excel/CSV Reading & Export -->
+    <!-- SheetJS Library for Excel/CSV Reading -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <script>
@@ -312,11 +312,7 @@
                         </div>
                         <p id="cat-desc" class="text-sm text-slate-500 mt-1">จัดการสต็อกและรายการสินค้า</p>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button onclick="exportToExcel()" class="inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-emerald-100 transition-all text-sm">
-                            <i class="fa-solid fa-file-excel"></i>
-                            <span>ส่งออกเป็น Excel</span>
-                        </button>
+                    <div class="flex items-center space-x-2">
                         <button onclick="switchTab('movement')" class="inline-flex items-center justify-center space-x-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-amber-100 transition-all text-sm">
                             <i class="fa-solid fa-arrow-right-arrow-left"></i>
                             <span>รับเข้า/เบิกออก</span>
@@ -696,6 +692,13 @@
             }
         }
 
+        // Close Sidebar specifically for Mobile view
+        function closeSidebarOnMobile() {
+            if (window.innerWidth < 1024 && isSidebarOpen) {
+                toggleSidebar();
+            }
+        }
+
         // Local Storage Methods
         function loadStorageData() {
             const savedItems = localStorage.getItem('stockmaster_items_v3');
@@ -729,6 +732,7 @@
                 saveLogsStorage();
                 renderApp();
                 showToast('รีเซ็ตข้อมูลตั้งต้นเรียบร้อยแล้ว', 'info');
+                closeSidebarOnMobile();
             }
         }
 
@@ -783,6 +787,9 @@
             }
 
             renderApp();
+            
+            // Auto close sidebar after selecting tab on mobile
+            closeSidebarOnMobile();
         }
 
         // Render Master Helper
@@ -862,8 +869,9 @@
             }).join('');
         }
 
-        // Helper to get filtered items list for Table & Export
-        function getFilteredItems() {
+        // Render Inventory Data Table
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventory-table-body');
             const searchValue = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
             const statusFilter = document.getElementById('status-filter')?.value || 'all';
 
@@ -879,14 +887,6 @@
             if (statusFilter === 'sufficient') filtered = filtered.filter(i => i.quantity > i.minQuantity * 1.2);
             else if (statusFilter === 'low') filtered = filtered.filter(i => i.quantity >= i.minQuantity && i.quantity <= i.minQuantity * 1.2);
             else if (statusFilter === 'reorder') filtered = filtered.filter(i => i.quantity < i.minQuantity);
-
-            return filtered;
-        }
-
-        // Render Inventory Data Table
-        function renderInventoryTable() {
-            const tbody = document.getElementById('inventory-table-body');
-            const filtered = getFilteredItems();
 
             document.getElementById('summary-display-count').innerText = filtered.length;
             document.getElementById('summary-total-qty').innerText = filtered.reduce((s, i) => s + Number(i.quantity), 0).toLocaleString();
@@ -943,56 +943,6 @@
                     </tr>
                 `;
             }).join('');
-        }
-
-        // Export Inventory to Excel File
-        function exportToExcel() {
-            const listData = getFilteredItems();
-            
-            if (listData.length === 0) {
-                alert('ไม่มีข้อมูลสินค้าที่จะส่งออก');
-                return;
-            }
-
-            // Map rows into clean JSON structure for Excel export
-            const excelRows = listData.map((item, index) => {
-                let statusText = 'เพียงพอ';
-                if (item.quantity < item.minQuantity) statusText = 'ต้องสั่งซื้อเพิ่ม';
-                else if (item.quantity <= item.minQuantity * 1.2) statusText = 'สต็อกใกล้หมด';
-
-                return {
-                    'ลำดับ': index + 1,
-                    'ชื่อรายการสินค้า': item.name,
-                    'หน่วยนับ': item.unit,
-                    'จำนวนคงเหลือ': item.quantity,
-                    'จุดสั่งซื้อขั้นต่ำ': item.minQuantity,
-                    'สถานะสต็อก': statusText
-                };
-            });
-
-            // Create Excel Sheet using SheetJS (XLSX)
-            const worksheet = XLSX.utils.json_to_sheet(excelRows);
-            
-            // Set auto column widths for better visual formatting
-            worksheet['!cols'] = [
-                { wch: 8 },  // ลำดับ
-                { wch: 35 }, // ชื่อรายการสินค้า
-                { wch: 12 }, // หน่วยนับ
-                { wch: 15 }, // จำนวนคงเหลือ
-                { wch: 18 }, // จุดสั่งซื้อขั้นต่ำ
-                { wch: 18 }  // สถานะสต็อก
-            ];
-
-            const workbook = XLSX.utils.book_new();
-            const sheetName = currentTab === 'medical' ? 'อุปกรณ์เวชภัณฑ์' : 'อุปกรณ์เครื่องใช้อื่นๆ';
-            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-
-            // Generate filename with date
-            const today = new Date().toISOString().split('T')[0];
-            const fileName = `รายงานสต็อก_${sheetName}_${today}.xlsx`;
-
-            XLSX.writeFile(workbook, fileName);
-            showToast(`ส่งออกไฟล์ Excel "${fileName}" สำเร็จ`, 'success');
         }
 
         function filterItems() { renderInventoryTable(); }
