@@ -3,1444 +3,905 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบจัดการสต็อกสินค้า - Inventory Management System</title>
-    
-    <!-- Tailwind CSS CDN -->
+    <title>ระบบจัดการสต็อกสินค้า (Inventory Management System)</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome Icons -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts: Prompt -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- PDF.js Library for Client-side PDF Reading -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <!-- SheetJS Library for Excel/CSV Reading -->
+    <!-- SheetJS for Excel Import/Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- PDF.js for PDF reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Prompt', 'sans-serif'],
-                    }
-                }
-            }
-        }
-        if (window['pdfjs-dist/build/pdf']) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        }
-    </script>
     <style>
-        body {
-            font-family: 'Prompt', sans-serif;
-            background-color: #f8fafc;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-        /* Smooth Layout Shift when Sidebar is open */
-        .sidebar-open-layout {
-            padding-left: 18rem; /* 288px (w-72) */
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+        .sidebar { transition: transform 0.3s ease-in-out; }
+        .sidebar-closed { transform: translateX(-100%); }
+        .sidebar-open { transform: translateX(0); }
+        .main-content { transition: margin-left 0.3s ease-in-out; }
+        @media (min-width: 768px) {
+            .main-content-shifted { margin-left: 16rem; }
         }
     </style>
-    <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-    <!-- Top Navigation Bar -->
+    <!-- Navbar -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <!-- Hamburger Menu Button (Toggle Open/Close Side Navigation) -->
-                <button id="menu-toggle-btn" onclick="toggleSidebar()" class="p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-600 focus:outline-none transition-all active:scale-95 border border-slate-200/80 shadow-xs" title="กดเพื่อเปิด/ปิด แถบเมนู">
-                    <i class="fa-solid fa-bars text-xl"></i>
-                </button>
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-blue-200">
-                        <i class="fa-solid fa-boxes-stacked text-lg"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-lg leading-tight text-slate-800 tracking-tight">StockMaster Pro</h1>
-                        <p class="text-[11px] text-slate-500 font-medium">ระบบจัดการสต็อกสินค้าคลัง</p>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <button id="toggleSidebarBtn" class="p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200">
+                            <i class="fa-solid fa-boxes-stacked"></i>
+                        </div>
+                        <span class="font-bold text-lg text-slate-800 tracking-tight hidden sm:inline">StockMaster</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- Header Action Right -->
-            <div class="flex items-center space-x-3">
-                <button id="btn-reset-data" onclick="resetToDefaultData()" class="hidden sm:flex items-center space-x-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl transition-all border border-slate-300 font-medium shadow-xs">
-                    <i class="fa-solid fa-rotate-left text-slate-500"></i>
-                    <span>รีเซ็ตข้อมูล Excel ตั้งต้น</span>
-                </button>
-                <div class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold text-xs">
-                    <i class="fa-solid fa-user-gear"></i>
+                <div class="flex items-center space-x-3">
+                    <div id="connectionStatus" class="flex items-center space-x-2 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span>กำลังเชื่อมต่อ...</span>
+                    </div>
+                    <button onclick="exportToExcel()" class="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition">
+                        <i class="fa-solid fa-file-excel text-base"></i>
+                        <span class="hidden md:inline">ส่งออกเป็น Excel</span>
+                    </button>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- App Wrapper Container -->
-    <div class="flex-1 flex relative max-w-7xl w-full mx-auto">
-
-        <!-- Non-blocking Sidebar Navigation Drawer (Slide-in / Slide-out without overlay) -->
-        <aside id="sidebar" class="fixed top-16 bottom-0 left-0 z-20 w-72 bg-white border-r border-slate-200 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col justify-between shadow-lg">
-            <div class="p-4 space-y-6 overflow-y-auto custom-scrollbar">
-                <div>
-                    <div class="flex items-center justify-between px-3 mb-3">
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">เมนูหลัก</p>
-                        <span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">Sidebar</span>
-                    </div>
-                    <nav class="space-y-1.5">
-                        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-blue-600 bg-blue-50 font-semibold">
-                            <i class="fa-solid fa-chart-pie text-lg w-6 text-center"></i>
-                            <span>สรุปภาพรวม (Dashboard)</span>
-                        </button>
-                        <button onclick="switchTab('medical')" id="nav-medical" class="w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-slate-600 hover:bg-slate-100">
-                            <i class="fa-solid fa-briefcase-medical text-lg w-6 text-center text-teal-600"></i>
-                            <span>อุปกรณ์เวชภัณฑ์</span>
-                            <span id="badge-medical" class="ml-auto text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-semibold border border-slate-200">0</span>
-                        </button>
-                        <button onclick="switchTab('office')" id="nav-office" class="w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-slate-600 hover:bg-slate-100">
-                            <i class="fa-solid fa-box-archive text-lg w-6 text-center text-indigo-600"></i>
-                            <span>อุปกรณ์เครื่องใช้อื่นๆ</span>
-                            <span id="badge-office" class="ml-auto text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-semibold border border-slate-200">0</span>
-                        </button>
-                    </nav>
+    <div class="flex flex-1 relative">
+        <!-- Drawer Sidebar -->
+        <aside id="sidebar" class="sidebar sidebar-closed fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-slate-200 z-20 overflow-y-auto flex flex-col justify-between shadow-lg">
+            <div class="p-4 space-y-1">
+                <div class="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    เมนูหลัก
                 </div>
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                    <i class="fa-solid fa-chart-pie w-5 text-center text-slate-400"></i>
+                    <span>ภาพรวมระบบ (Dashboard)</span>
+                </button>
 
-                <div>
-                    <p class="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">การจัดการสต็อก</p>
-                    <nav class="space-y-1.5">
-                        <button onclick="switchTab('movement')" id="nav-movement" class="w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-slate-600 hover:bg-slate-100 border border-slate-200/80 bg-slate-50/50">
-                            <i class="fa-solid fa-arrow-right-arrow-left text-lg w-6 text-center text-amber-600"></i>
-                            <span>บันทึกรับเข้า - เบิกออก</span>
-                            <span class="ml-auto flex h-2 w-2 relative">
-                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                              <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                            </span>
-                        </button>
-                    </nav>
+                <div class="pt-4 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    หมวดหมู่สินค้า
                 </div>
+                <button onclick="switchTab('เวชภัณฑ์')" id="nav-เวชภัณฑ์" class="nav-item w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                    <i class="fa-solid fa-notes-medical w-5 text-center text-slate-400"></i>
+                    <span>อุปกรณ์เวชภัณฑ์</span>
+                </button>
+                <button onclick="switchTab('เครื่องใช้')" id="nav-เครื่องใช้" class="nav-item w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                    <i class="fa-solid fa-boxes-packing w-5 text-center text-slate-400"></i>
+                    <span>อุปกรณ์เครื่องใช้อื่นๆ</span>
+                </button>
 
-                <div class="border-t border-slate-100 pt-4">
-                    <p class="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">สรุปสถานะด่วน</p>
-                    <div class="space-y-2 px-1">
-                        <div class="bg-red-50 border border-red-100 p-3 rounded-xl flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                                <span class="text-xs text-red-700 font-medium">ต้องสั่งซื้อเพิ่ม</span>
-                            </div>
-                            <span id="quick-status-reorder" class="text-xs font-bold text-red-700">0</span>
-                        </div>
-                        <div class="bg-amber-50 border border-amber-100 p-3 rounded-xl flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                <span class="text-xs text-amber-700 font-medium">สต็อกใกล้หมด</span>
-                            </div>
-                            <span id="quick-status-warning" class="text-xs font-bold text-amber-700">0</span>
-                        </div>
-                    </div>
+                <div class="pt-4 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    ทำรายการ
                 </div>
+                <button onclick="switchTab('movement')" id="nav-movement" class="nav-item w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                    <i class="fa-solid fa-arrow-right-arrow-left w-5 text-center text-slate-400"></i>
+                    <span>บันทึกรับเข้า - เบิกออก</span>
+                </button>
             </div>
 
-            <div class="p-4 border-t border-slate-100 sm:hidden">
-                <button onclick="resetToDefaultData()" class="w-full flex items-center justify-center space-x-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl transition-colors border border-slate-300 font-medium">
-                    <i class="fa-solid fa-rotate-left text-slate-500"></i>
-                    <span>รีเซ็ตข้อมูล Excel ตั้งต้น</span>
+            <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+                <button onclick="resetDataToDefault()" class="w-full flex items-center justify-center space-x-2 text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 py-2 rounded-lg font-medium transition">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>รีเซ็ตเป็นข้อมูลตั้งต้น</span>
                 </button>
             </div>
         </aside>
 
-        <!-- Main Content View Area -->
-        <main id="main-content" class="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto w-full transition-all duration-300">
-
-            <!-- 1. DASHBOARD VIEW -->
-            <section id="view-dashboard" class="space-y-6">
+        <!-- Main Content Area -->
+        <main id="mainContent" class="main-content flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            
+            <!-- Dynamic Content Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h2 class="text-2xl font-bold text-slate-800">ภาพรวมสต็อกสินค้า</h2>
-                    <p class="text-sm text-slate-500">สรุปข้อมูลปริมาณสินค้าคงเหลือ และรายการที่ต้องเฝ้าระวัง</p>
+                    <h1 id="pageTitle" class="text-2xl font-bold text-slate-900">ภาพรวมระบบ (Dashboard)</h1>
+                    <p id="pageSubtitle" class="text-sm text-slate-500 mt-1">สรุปสถานะสต็อกสินค้าและรายการทั้งหมด</p>
                 </div>
+                <div id="actionButtons" class="flex items-center space-x-2">
+                    <!-- Action buttons dynamically inserted here -->
+                </div>
+            </div>
 
-                <!-- Stats Cards -->
+            <!-- Tab 1: Dashboard -->
+            <div id="view-dashboard" class="tab-view space-y-6">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
                             <i class="fa-solid fa-cubes"></i>
                         </div>
                         <div>
-                            <p class="text-xs text-slate-500 font-medium">รายการสินค้าทั้งหมด</p>
-                            <h3 id="stat-total-items" class="text-2xl font-bold text-slate-800">0</h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">รวมทุกหมวดหมู่</p>
+                            <div class="text-xs font-medium text-slate-500">รายการสินค้าทั้งหมด</div>
+                            <div id="dashTotalCount" class="text-2xl font-bold text-slate-800 mt-0.5">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
                             <i class="fa-solid fa-circle-check"></i>
                         </div>
                         <div>
-                            <p class="text-xs text-slate-500 font-medium">สถานะสต็อกเพียงพอ</p>
-                            <h3 id="stat-normal-items" class="text-2xl font-bold text-emerald-600">0</h3>
-                            <p class="text-[11px] text-emerald-600/70 mt-0.5">พร้อมใช้งาน</p>
+                            <div class="text-xs font-medium text-slate-500">สต็อกเพียงพอ</div>
+                            <div id="dashSufficientCount" class="text-2xl font-bold text-emerald-600 mt-0.5">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
                             <i class="fa-solid fa-triangle-exclamation"></i>
                         </div>
                         <div>
-                            <p class="text-xs text-slate-500 font-medium">สต็อกใกล้หมด</p>
-                            <h3 id="stat-warning-items" class="text-2xl font-bold text-amber-600">0</h3>
-                            <p class="text-[11px] text-amber-600/70 mt-0.5">ควรวางแผนสั่งซื้อ</p>
+                            <div class="text-xs font-medium text-slate-500">เหลือน้อยใกล้หมด</div>
+                            <div id="dashLowCount" class="text-2xl font-bold text-amber-600 mt-0.5">0</div>
                         </div>
                     </div>
 
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl shrink-0">
-                            <i class="fa-solid fa-circle-exclamation"></i>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-circle-xmark"></i>
                         </div>
                         <div>
-                            <p class="text-xs text-slate-500 font-medium">ต้องสั่งซื้อเพิ่มทันที</p>
-                            <h3 id="stat-reorder-items" class="text-2xl font-bold text-red-600">0</h3>
-                            <p class="text-[11px] text-red-600/70 mt-0.5">น้อยกว่าขั้นต่ำกำหนด</p>
+                            <div class="text-xs font-medium text-slate-500">สินค้าหมดสต็อก</div>
+                            <div id="dashOutCount" class="text-2xl font-bold text-rose-600 mt-0.5">0</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Category Breakdown Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
-                                    <i class="fa-solid fa-briefcase-medical text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800">อุปกรณ์เวชภัณฑ์</h3>
-                                    <p class="text-xs text-slate-500">ยา เข็ม น้ำเกลือ และอุปกรณ์การแพทย์</p>
-                                </div>
-                            </div>
-                            <button onclick="switchTab('medical')" class="text-xs text-teal-600 hover:text-teal-700 font-medium flex items-center space-x-1">
-                                <span>ดูตาราง</span>
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-3 gap-2 text-center">
-                            <div class="bg-slate-50 p-3 rounded-xl">
-                                <p class="text-xs text-slate-500">ทั้งหมด</p>
-                                <p id="dash-med-total" class="text-lg font-bold text-slate-700">0</p>
-                            </div>
-                            <div class="bg-teal-50 p-3 rounded-xl">
-                                <p class="text-xs text-teal-700">รวมชิ้นคงเหลือ</p>
-                                <p id="dash-med-qty" class="text-lg font-bold text-teal-700">0</p>
-                            </div>
-                            <div class="bg-red-50 p-3 rounded-xl">
-                                <p class="text-xs text-red-700">ต้องสั่งซื้อ</p>
-                                <p id="dash-med-alert" class="text-lg font-bold text-red-700">0</p>
-                            </div>
-                        </div>
+                <!-- Alert Section for Low Items -->
+                <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-5">
+                    <div class="flex items-center space-x-2 text-amber-800 font-semibold text-base mb-3">
+                        <i class="fa-solid fa-bell animate-bounce"></i>
+                        <span>รายการที่ต้องรีบสั่งซื้อเพิ่ม</span>
                     </div>
-
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                                    <i class="fa-solid fa-box-archive text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800">อุปกรณ์เครื่องใช้อื่นๆ</h3>
-                                    <p class="text-xs text-slate-500">กระดาษ เครื่องเขียน และของใช้ทั่วไป</p>
-                                </div>
-                            </div>
-                            <button onclick="switchTab('office')" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center space-x-1">
-                                <span>ดูตาราง</span>
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-3 gap-2 text-center">
-                            <div class="bg-slate-50 p-3 rounded-xl">
-                                <p class="text-xs text-slate-500">ทั้งหมด</p>
-                                <p id="dash-off-total" class="text-lg font-bold text-slate-700">0</p>
-                            </div>
-                            <div class="bg-indigo-50 p-3 rounded-xl">
-                                <p class="text-xs text-indigo-700">รวมชิ้นคงเหลือ</p>
-                                <p id="dash-off-qty" class="text-lg font-bold text-indigo-700">0</p>
-                            </div>
-                            <div class="bg-red-50 p-3 rounded-xl">
-                                <p class="text-xs text-red-700">ต้องสั่งซื้อ</p>
-                                <p id="dash-off-alert" class="text-lg font-bold text-red-700">0</p>
-                            </div>
-                        </div>
+                    <div id="alertItemList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <!-- Low stock items rendered here -->
                     </div>
                 </div>
+            </div>
 
-                <!-- Urgent Items List -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
-                    <h3 class="font-bold text-slate-800 flex items-center space-x-2">
-                        <i class="fa-solid fa-bell text-amber-500"></i>
-                        <span>รายการที่ต้องเร่งสั่งซื้อ / เฝ้าระวัง</span>
-                    </h3>
-                    <div id="dashboard-alert-list" class="divide-y divide-slate-100">
-                        <!-- Dynamic content -->
+            <!-- Tab 2 & 3: Table Views (Medical & Office) -->
+            <div id="view-table" class="tab-view hidden space-y-4">
+                <!-- Search and Filter Bar -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 justify-between items-center">
+                    <div class="relative w-full sm:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
+                        <input type="text" id="searchInput" oninput="renderTable()" placeholder="ค้นหาชื่อสินค้า..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     </div>
-                </div>
-            </section>
-
-            <!-- 2. INVENTORY LIST VIEW -->
-            <section id="view-inventory" class="hidden space-y-6">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <span id="cat-badge" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-teal-100 text-teal-800">หมวดหมู่</span>
-                            <h2 id="cat-title" class="text-2xl font-bold text-slate-800">ชื่อหมวดหมู่</h2>
-                        </div>
-                        <p id="cat-desc" class="text-sm text-slate-500 mt-1">จัดการสต็อกและรายการสินค้า</p>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button onclick="switchTab('movement')" class="inline-flex items-center justify-center space-x-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-amber-100 transition-all text-sm">
-                            <i class="fa-solid fa-arrow-right-arrow-left"></i>
-                            <span>รับเข้า/เบิกออก</span>
-                        </button>
-                        <button onclick="openModal('add')" class="inline-flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-blue-200 transition-all text-sm">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>เพิ่มสินค้าใหม่</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Filter and Search Bar -->
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-                    <div class="relative w-full md:w-80">
-                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="search-input" onkeyup="filterItems()" placeholder="ค้นหาชื่อสินค้า หรือหน่วยนับ..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
-                    </div>
-
-                    <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
-                        <span class="text-xs text-slate-500 whitespace-nowrap"><i class="fa-solid fa-filter mr-1"></i>สถานะ:</span>
-                        <select id="status-filter" onchange="filterItems()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex items-center space-x-2 w-full sm:w-auto">
+                        <label class="text-xs font-medium text-slate-500 whitespace-nowrap">กรองตามสถานะ:</label>
+                        <select id="statusFilter" onchange="renderTable()" class="w-full sm:w-auto border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             <option value="all">ทั้งหมด</option>
                             <option value="sufficient">เพียงพอ</option>
-                            <option value="low">ใกล้หมด</option>
-                            <option value="reorder">ต้องสั่งซื้อเพิ่ม</option>
+                            <option value="low">เหลือน้อย</option>
+                            <option value="out">สินค้าหมด</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Inventory Table -->
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                <!-- Data Table -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm text-slate-600">
-                            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                                <tr>
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                     <th class="py-3.5 px-4">#</th>
-                                    <th class="py-3.5 px-4">ชื่อรายการสินค้า</th>
-                                    <th class="py-3.5 px-4">หน่วยนับ</th>
-                                    <th class="py-3.5 px-4 text-center">จำนวนคงเหลือ</th>
-                                    <th class="py-3.5 px-4 text-center">จุดสั่งขั้นต่ำ</th>
+                                    <th class="py-3.5 px-4">รายการสินค้า</th>
+                                    <th class="py-3.5 px-4 text-center">หน่วยนับ</th>
+                                    <th class="py-3.5 px-4 text-right">จำนวนคงเหลือ</th>
+                                    <th class="py-3.5 px-4 text-right">จุดสั่งซื้อขั้นต่ำ</th>
                                     <th class="py-3.5 px-4 text-center">สถานะสต็อก</th>
-                                    <th class="py-3.5 px-4 text-center">จัดการ</th>
+                                    <th class="py-3.5 px-4 text-center">การจัดการ</th>
                                 </tr>
                             </thead>
-                            <tbody id="inventory-table-body" class="divide-y divide-slate-100">
-                                <!-- Dynamic rows -->
+                            <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Dynamic Rows -->
                             </tbody>
                         </table>
                     </div>
-
-                    <div class="bg-slate-50/80 px-6 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-600 gap-2">
-                        <div class="flex items-center space-x-4">
-                            <span>แสดงรวม <strong id="summary-display-count" class="text-slate-800">0</strong> รายการ</span>
-                            <span>|</span>
-                            <span>จำนวนคงเหลือรวม <strong id="summary-total-qty" class="text-blue-600 font-bold">0</strong> ชิ้น/หน่วย</span>
-                        </div>
-                    </div>
                 </div>
-            </section>
+            </div>
 
-            <!-- 3. STOCK MOVEMENT VIEW -->
-            <section id="view-movement" class="hidden space-y-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-800">บันทึกรับเข้า - เบิกออกสินค้า</h2>
-                    <p class="text-sm text-slate-500">ปรับปรุงจำนวนสต็อกด้วยตนเอง หรือนำเข้าไฟล์ PDF / Excel / CSV อัตโนมัติ</p>
-                </div>
-
-                <!-- Mode Selection Switch -->
-                <div class="bg-slate-200/60 p-1.5 rounded-2xl max-w-md flex text-xs font-semibold">
-                    <button onclick="toggleMoveMode('manual')" id="mode-btn-manual" class="flex-1 py-2 rounded-xl text-center transition-all bg-white text-slate-800 shadow-xs font-semibold">
-                        <i class="fa-solid fa-pen-to-square mr-1.5"></i>ทำรายการรายชิ้น
-                    </button>
-                    <button onclick="toggleMoveMode('import')" id="mode-btn-import" class="flex-1 py-2 rounded-xl text-center transition-all text-slate-600 hover:text-slate-900">
-                        <i class="fa-solid fa-file-import mr-1.5 text-blue-600"></i>นำเข้าไฟล์ (PDF/Excel)
-                    </button>
-                </div>
-
+            <!-- Tab 4: Stock Movement -->
+            <div id="view-movement" class="tab-view hidden space-y-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    <!-- MANUAL ENTRY FORM -->
-                    <div id="panel-manual-form" class="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                        <h3 class="font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center space-x-2">
-                            <i class="fa-solid fa-pen-to-square text-amber-500"></i>
-                            <span>ทำรายการปรับสต็อก</span>
-                        </h3>
+                    <!-- Form Side -->
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                        <h2 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center space-x-2">
+                            <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
+                            <span>บันทึกการทำรายการ</span>
+                        </h2>
 
-                        <form id="movement-form" onsubmit="handleMovementSubmit(event)" class="space-y-4">
+                        <form id="movementForm" onsubmit="handleMovementSubmit(event)" class="space-y-4">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">หมวดหมู่สินค้า</label>
-                                <select id="move-category" onchange="updateMovementItemOptions()" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500">
-                                    <option value="medical">อุปกรณ์เวชภัณฑ์</option>
-                                    <option value="office">อุปกรณ์เครื่องใช้อื่นๆ</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">รายการสินค้า</label>
-                                <select id="move-item-id" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500">
-                                    <!-- Options populated dynamically -->
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">ประเภทการทำรายการ</label>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">ประเภทรายการ</label>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="move-type" value="in" checked class="peer sr-only">
-                                        <div class="py-2.5 px-3 rounded-xl border border-slate-200 text-center text-xs font-bold text-slate-600 peer-checked:bg-emerald-50 peer-checked:border-emerald-500 peer-checked:text-emerald-700 transition-all flex items-center justify-center space-x-1.5">
-                                            <i class="fa-solid fa-circle-plus text-emerald-500"></i>
-                                            <span>รับเข้า (+)</span>
-                                        </div>
+                                    <label class="flex items-center justify-center p-2.5 border rounded-lg cursor-pointer transition text-sm font-medium hover:bg-emerald-50 has-[:checked]:bg-emerald-50 has-[:checked]:border-emerald-500 has-[:checked]:text-emerald-700">
+                                        <input type="radio" name="moveType" value="in" class="sr-only" checked>
+                                        <i class="fa-solid fa-circle-plus mr-2 text-emerald-600"></i> รับเข้า (+)
                                     </label>
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="move-type" value="out" class="peer sr-only">
-                                        <div class="py-2.5 px-3 rounded-xl border border-slate-200 text-center text-xs font-bold text-slate-600 peer-checked:bg-rose-50 peer-checked:border-rose-500 peer-checked:text-rose-700 transition-all flex items-center justify-center space-x-1.5">
-                                            <i class="fa-solid fa-circle-minus text-rose-500"></i>
-                                            <span>เบิกออก (-)</span>
-                                        </div>
+                                    <label class="flex items-center justify-center p-2.5 border rounded-lg cursor-pointer transition text-sm font-medium hover:bg-rose-50 has-[:checked]:bg-rose-50 has-[:checked]:border-rose-500 has-[:checked]:text-rose-700">
+                                        <input type="radio" name="moveType" value="out" class="sr-only">
+                                        <i class="fa-solid fa-circle-minus mr-2 text-rose-600"></i> เบิกออก (-)
                                     </label>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">จำนวนที่ปรับเปลี่ยน</label>
-                                <input type="number" id="move-amount" required min="1" value="1" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">เลือกสินค้า</label>
+                                <select id="moveProductSelect" required class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+                                    <!-- Dynamic options -->
+                                </select>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">หมายเหตุ / เหตุผล</label>
-                                <input type="text" id="move-note" placeholder="เช่น เบิกใช้ห้องตรวจ A, รับสินค้าเพิ่มจาก Supplier" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">จำนวน</label>
+                                <input type="number" id="moveQty" min="1" required placeholder="เช่น 10" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
                             </div>
 
-                            <button type="submit" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl shadow-md shadow-amber-200 transition-all text-sm flex items-center justify-center space-x-2">
-                                <i class="fa-solid fa-floppy-disk"></i>
-                                <span>บันทึกการปรับสต็อก</span>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">หมายเหตุ / เหตุผล</label>
+                                <input type="text" id="moveNote" placeholder="เช่น เบิกใช้งานแผนกผู้ป่วยนอก, สั่งซื้อเพิ่มประจำเดือน" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+                            </div>
+
+                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm shadow-sm transition">
+                                บันทึกรายการ
                             </button>
                         </form>
-                    </div>
 
-                    <!-- IMPORT FILE PANEL -->
-                    <div id="panel-import-form" class="hidden lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                        <h3 class="font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center space-x-2">
-                            <i class="fa-solid fa-file-arrow-up text-blue-500"></i>
-                            <span>นำเข้าเอกสารรับเข้า / เบิกออก</span>
-                        </h3>
-
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">การทำรายการตามเอกสารนี้</label>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="import-action-type" value="in" checked class="peer sr-only">
-                                        <div class="py-2.5 px-3 rounded-xl border border-slate-200 text-center text-xs font-bold text-slate-600 peer-checked:bg-emerald-50 peer-checked:border-emerald-500 peer-checked:text-emerald-700 transition-all flex items-center justify-center space-x-1.5">
-                                            <i class="fa-solid fa-circle-plus text-emerald-500"></i>
-                                            <span>รับเข้าสต็อก (+)</span>
-                                        </div>
-                                    </label>
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="import-action-type" value="out" class="peer sr-only">
-                                        <div class="py-2.5 px-3 rounded-xl border border-slate-200 text-center text-xs font-bold text-slate-600 peer-checked:bg-rose-50 peer-checked:border-rose-500 peer-checked:text-rose-700 transition-all flex items-center justify-center space-x-1.5">
-                                            <i class="fa-solid fa-circle-minus text-rose-500"></i>
-                                            <span>เบิกออก (-)</span>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- File Upload Box -->
-                            <div id="drop-zone" onclick="document.getElementById('file-input').click()" class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/30 p-6 rounded-2xl text-center cursor-pointer transition-all space-y-2">
-                                <input type="file" id="file-input" onchange="handleFileUpload(event)" accept=".pdf, .xlsx, .xls, .csv" class="hidden">
-                                <div class="w-12 h-12 mx-auto rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                                </div>
-                                <p class="text-xs font-semibold text-slate-700">คลิก หรือ ลากไฟล์มาวางที่นี่</p>
-                                <p class="text-[11px] text-slate-400">รองรับไฟล์ PDF, Excel (.xlsx/.xls), CSV</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">อ้างอิงเอกสาร / หมายเหตุ</label>
-                                <input type="text" id="import-doc-ref" placeholder="เช่น ใบส่งของ PO-670901, ใบเบิกงานพยาบาล" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500">
-                            </div>
+                        <div class="pt-4 border-t border-slate-100">
+                            <label class="block text-xs font-semibold text-slate-600 mb-2">หรือ นำเข้าข้อมูลจากไฟล์ PDF / Excel</label>
+                            <label class="flex items-center justify-center space-x-2 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 p-4 rounded-xl cursor-pointer transition text-indigo-700 text-sm font-medium">
+                                <i class="fa-solid fa-file-arrow-up text-lg"></i>
+                                <span>อัปโหลดไฟล์ (PDF, XLSX)</span>
+                                <input type="file" accept=".pdf,.xlsx,.xls" onchange="handleFileUpload(event)" class="hidden">
+                            </label>
                         </div>
                     </div>
 
-                    <!-- Log & Import Preview Table Side -->
-                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                        
-                        <!-- Log Header -->
-                        <div id="log-header" class="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <h3 class="font-bold text-slate-800 flex items-center space-x-2">
-                                <i class="fa-solid fa-clock-rotate-left text-blue-500"></i>
-                                <span>ประวัติการรับเข้า - เบิกออกล่าสุด</span>
-                            </h3>
-                            <button onclick="clearMovementLogs()" class="text-xs text-slate-400 hover:text-red-500 transition-colors">ล้างประวัติ</button>
-                        </div>
+                    <!-- Movement History Log -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+                        <h2 class="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center justify-between">
+                            <span class="flex items-center space-x-2">
+                                <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+                                <span>ประวัติการทำรายการล่าสุด</span>
+                            </span>
+                            <span class="text-xs text-slate-400 font-normal">แสดง 20 รายการล่าสุด</span>
+                        </h2>
 
-                        <!-- Import Preview Header -->
-                        <div id="import-preview-header" class="hidden flex items-center justify-between border-b border-slate-100 pb-3">
-                            <h3 class="font-bold text-slate-800 flex items-center space-x-2">
-                                <i class="fa-solid fa-list-check text-emerald-600"></i>
-                                <span>รายการที่อ่านได้จากไฟล์ (Preview)</span>
-                            </h3>
-                            <button onclick="confirmImportBatch()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-200 transition-all flex items-center space-x-1.5">
-                                <i class="fa-solid fa-circle-check"></i>
-                                <span>ยืนยันปรับสต็อกทั้งหมด</span>
-                            </button>
-                        </div>
-
-                        <!-- History Log Table -->
-                        <div id="history-log-table-wrapper" class="overflow-x-auto max-h-[460px] custom-scrollbar">
-                            <table class="w-full text-left text-sm text-slate-600">
-                                <thead class="bg-slate-50 text-slate-500 text-xs font-semibold border-b border-slate-200 sticky top-0">
-                                    <tr>
+                        <div class="overflow-x-auto flex-1">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
                                         <th class="py-2.5 px-3">วัน-เวลา</th>
+                                        <th class="py-2.5 px-3">ประเภท</th>
                                         <th class="py-2.5 px-3">รายการสินค้า</th>
-                                        <th class="py-2.5 px-3 text-center">ประเภท</th>
                                         <th class="py-2.5 px-3 text-right">จำนวน</th>
-                                        <th class="py-2.5 px-3">หมายเหตุ / อ้างอิง</th>
+                                        <th class="py-2.5 px-3">หมายเหตุ</th>
                                     </tr>
                                 </thead>
-                                <tbody id="movement-history-body" class="divide-y divide-slate-100">
-                                    <!-- Log rows populated dynamically -->
+                                <tbody id="movementHistoryBody" class="divide-y divide-slate-100 text-xs">
+                                    <!-- History rows -->
                                 </tbody>
                             </table>
                         </div>
-
-                        <!-- Import Preview Table -->
-                        <div id="import-preview-table-wrapper" class="hidden overflow-x-auto max-h-[460px] custom-scrollbar">
-                            <table class="w-full text-left text-sm text-slate-600">
-                                <thead class="bg-slate-50 text-slate-500 text-xs font-semibold border-b border-slate-200 sticky top-0">
-                                    <tr>
-                                        <th class="py-2.5 px-3">#</th>
-                                        <th class="py-2.5 px-3">ชื่อรายการในไฟล์</th>
-                                        <th class="py-2.5 px-3 text-center">สถานะสต็อกเดิม</th>
-                                        <th class="py-2.5 px-3 text-center">จำนวนในไฟล์</th>
-                                        <th class="py-2.5 px-3 text-center">ลบ</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="import-preview-body" class="divide-y divide-slate-100">
-                                    <!-- Dynamic import preview items -->
-                                </tbody>
-                            </table>
-                        </div>
-
                     </div>
                 </div>
-            </section>
+            </div>
 
         </main>
     </div>
 
-    <!-- Add/Edit Item Modal -->
-    <div id="item-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden transform transition-all">
-            <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                <h3 id="modal-title" class="font-bold text-slate-800 text-lg">เพิ่มรายการสินค้าใหม่</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
+    <!-- Product Modal (Add / Edit) -->
+    <div id="productModal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden transform transition-all">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 id="modalTitle" class="text-base font-bold text-slate-800">เพิ่มสินค้าใหม่</h3>
+                <button onclick="closeProductModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-
-            <form id="item-form" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
-                <input type="hidden" id="modal-item-id">
-                
+            <form id="productForm" onsubmit="handleProductSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="modalProductId">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">หมวดหมู่สินค้า <span class="text-red-500">*</span></label>
-                    <select id="modal-item-category" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="medical">อุปกรณ์เวชภัณฑ์</option>
-                        <option value="office">อุปกรณ์เครื่องใช้อื่นๆ</option>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">หมวดหมู่</label>
+                    <select id="modalCategory" required class="w-full border border-slate-200 rounded-lg p-2.5 text-sm">
+                        <option value="อุปกรณ์เวชภัณฑ์">อุปกรณ์เวชภัณฑ์</option>
+                        <option value="อุปกรณ์เครื่องใช้อื่นๆ">อุปกรณ์เครื่องใช้อื่นๆ</option>
                     </select>
                 </div>
-
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">ชื่อรายการสินค้า <span class="text-red-500">*</span></label>
-                    <input type="text" id="modal-item-name" required placeholder="เช่น NSS 100 ml, กระดาษ A4" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อสินค้า</label>
+                    <input type="text" id="modalName" required placeholder="เช่น Transpore ใหญ่" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm">
                 </div>
-
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">หน่วยนับ <span class="text-red-500">*</span></label>
-                        <input type="text" id="modal-item-unit" required placeholder="เช่น ขวด, กล่อง, ม้วน" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">หน่วยนับ</label>
+                        <input type="text" id="modalUnit" placeholder="เช่น ม้วน, กล่อง" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm">
                     </div>
-
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">จำนวนคงเหลือ</label>
-                        <input type="number" id="modal-item-quantity" required min="0" value="0" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">จุดสั่งซื้อขั้นต่ำ</label>
+                        <input type="number" id="modalMinQty" min="0" required value="5" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm">
                     </div>
                 </div>
-
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">จุดสั่งซื้อขั้นต่ำ (Reorder Level) <span class="text-red-500">*</span></label>
-                    <input type="number" id="modal-item-min" required min="0" value="10" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">จำนวนคงเหลือเริ่มต้น</label>
+                    <input type="number" id="modalQty" min="0" required value="0" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm">
                 </div>
-
-                <div class="pt-3 flex items-center justify-end space-x-3 border-t border-slate-100">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">ยกเลิก</button>
-                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 transition-colors">บันทึกข้อมูล</button>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeProductModal()" class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-100 font-medium">ยกเลิก</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm">บันทึกข้อมูล</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Notification Toast Message -->
-    <div id="toast-message" class="fixed bottom-5 right-5 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 text-sm z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
-        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
-        <span id="toast-text">ทำรายการเรียบร้อย</span>
-    </div>
-
+    <!-- App JavaScript -->
     <script>
-        // Initial Datasets (Mapped directly from Excel requirements)
-        const DEFAULT_ITEMS = [
-            // หมวด อุปกรณ์เวชภัณฑ์ (Medical Supplies)
-            { id: 1, category: 'medical', name: 'NSS 100 ml (Normal Saline)', unit: 'ขวด', quantity: 45, minQuantity: 15 },
-            { id: 2, category: 'medical', name: 'Transpore 1 นิ้ว', unit: 'ม้วน', quantity: 8, minQuantity: 10 },
-            { id: 3, category: 'medical', name: 'Transpore 1/2 นิ้ว', unit: 'ม้วน', quantity: 12, minQuantity: 10 },
-            { id: 4, category: 'medical', name: 'Alcohol 70% 450 ml', unit: 'ขวด', quantity: 18, minQuantity: 10 },
-            { id: 5, category: 'medical', name: 'Needle เบอร์ 18', unit: 'กล่อง', quantity: 4, minQuantity: 5 },
-            { id: 6, category: 'medical', name: 'Needle เบอร์ 21', unit: 'กล่อง', quantity: 6, minQuantity: 5 },
-            { id: 7, category: 'medical', name: 'Needle เบอร์ 24', unit: 'กล่อง', quantity: 3, minQuantity: 5 },
-            { id: 8, category: 'medical', name: 'IV Catheter เบอร์ 20', unit: 'กล่อง', quantity: 2, minQuantity: 3 },
-            { id: 9, category: 'medical', name: 'IV Catheter เบอร์ 22', unit: 'กล่อง', quantity: 5, minQuantity: 3 },
-            { id: 10, category: 'medical', name: 'Earplug ปลั๊กลดเสียง', unit: 'คู่', quantity: 25, minQuantity: 10 },
-            { id: 11, category: 'medical', name: 'Three way stopcock', unit: 'ตัว', quantity: 14, minQuantity: 10 },
-            { id: 12, category: 'medical', name: 'Syringe 3 ml', unit: 'กล่อง', quantity: 15, minQuantity: 8 },
-            { id: 13, category: 'medical', name: 'Syringe 5 ml', unit: 'กล่อง', quantity: 12, minQuantity: 8 },
-            { id: 14, category: 'medical', name: 'Syringe 10 ml', unit: 'กล่อง', quantity: 7, minQuantity: 8 },
-            { id: 15, category: 'medical', name: 'Extension tube 36 นิ้ว', unit: 'เส้น', quantity: 20, minQuantity: 10 },
-            { id: 16, category: 'medical', name: 'Fixomull Stretch 10cm x 10m', unit: 'กล่อง', quantity: 6, minQuantity: 5 },
-            { id: 17, category: 'medical', name: 'ถุงมือยางไซส์ S (Powder-Free)', unit: 'กล่อง', quantity: 14, minQuantity: 10 },
-            { id: 18, category: 'medical', name: 'ถุงมือยางไซส์ M (Powder-Free)', unit: 'กล่อง', quantity: 22, minQuantity: 10 },
-            { id: 19, category: 'medical', name: 'ถุงมือยางไซส์ L (Powder-Free)', unit: 'กล่อง', quantity: 9, minQuantity: 10 },
-            { id: 20, category: 'medical', name: 'ซองใสใส่ยา (Zip bag 6x8 cm)', unit: 'แพ็ค', quantity: 35, minQuantity: 15 },
-            { id: 21, category: 'medical', name: 'หน้ากากอนามัย Medical Mask 3 ชั้น', unit: 'กล่อง', quantity: 28, minQuantity: 10 },
+        // PDF.js worker setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-            // หมวด อุปกรณ์เครื่องใช้อื่นๆ (Office & General Equipment)
-            { id: 22, category: 'office', name: 'กระดาษถ่ายเอกสาร A4 80gsm', unit: 'รีม', quantity: 12, minQuantity: 15 },
-            { id: 23, category: 'office', name: 'ปากกาลูกลื่น น้ำเงิน 0.5 mm', unit: 'ด้าม', quantity: 40, minQuantity: 20 },
-            { id: 24, category: 'office', name: 'ปากกาลูกลื่น แดง 0.5 mm', unit: 'ด้าม', quantity: 15, minQuantity: 10 },
-            { id: 25, category: 'office', name: 'ปากกาไฮไลท์ (Highlighter)', unit: 'ด้าม', quantity: 18, minQuantity: 10 },
-            { id: 26, category: 'office', name: 'แฟ้มห่วง A4 ชนิด 2 ห่วง', unit: 'เล่ม', quantity: 8, minQuantity: 5 },
-            { id: 27, category: 'office', name: 'คลิปหนีบกระดาษ เบอร์ 110', unit: 'กล่อง', quantity: 10, minQuantity: 5 },
-            { id: 28, category: 'office', name: 'ทิชชูเปียก (Wet Wipes)', unit: 'ห่อ', quantity: 24, minQuantity: 12 },
-            { id: 29, category: 'office', name: 'ทิชชูแห้ง (Facial Tissue)', unit: 'กล่อง', quantity: 30, minQuantity: 15 },
-            { id: 30, category: 'office', name: 'ถุงขยะติดเชื้อ สีแดง 24x28 นิ้ว', unit: 'แพ็ค', quantity: 18, minQuantity: 10 },
-            { id: 31, category: 'office', name: 'ถุงขยะดำ 30x40 นิ้ว', unit: 'แพ็ค', quantity: 22, minQuantity: 10 }
-        ];
+        // Firebase Configuration (Configured with Singapore Realtime Database URL)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummyKeyForPublicAccess-R82230",
+            authDomain: "stockmaster-app-82230.firebaseapp.com",
+            databaseURL: "https://stockmaster-app-82230-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "stockmaster-app-82230",
+            storageBucket: "stockmaster-app-82230.appspot.com",
+            messagingSenderId: "8223082230",
+            appId: "1:8223082230:web:d2ff437d2ff437"
+        };
 
-        // Global Application State Variables
-        let items = [];
-        let movementLogs = [];
+        // Initial default items extracted from uploaded Excel
+        const defaultInitialData = {
+            "อุปกรณ์เวชภัณฑ์": [
+                { id: "med-1", name: "NSS 100 ml", unit: "แพ็ค (10 ขวด)", qty: 0, min_qty: 5 },
+                { id: "med-2", name: "Transpore ใหญ่", unit: "ม้วน", qty: 0, min_qty: 5 },
+                { id: "med-3", name: "Transpore เล็ก", unit: "ม้วน", qty: 0, min_qty: 5 },
+                { id: "med-4", name: "Alcohol ขวด", unit: "ขวด", qty: 0, min_qty: 5 },
+                { id: "med-5", name: "Alcohol สเปรย์", unit: "ขวด", qty: 0, min_qty: 5 },
+                { id: "med-6", name: "Mask", unit: "กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-7", name: "Needle (เข็มฉีดยา) เบอร์ 20", unit: "กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-8", name: "Needle (เข็มฉีดยา) เบอร์ 22", unit: "กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-9", name: "Needle (เข็มฉีดยา) เบอร์ 24", unit: "กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-10", name: "IV Catheter เบอร์ 18", unit: "50 ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-11", name: "IV Catheter เบอร์ 20", unit: "50 ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-12", name: "IV Catheter เบอร์ 22", unit: "50 ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-13", name: "IV Catheter เบอร์ 24", unit: "50 ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-14", name: "Earplug", unit: "คู่", qty: 0, min_qty: 5 },
+                { id: "med-15", name: "Three way", unit: "100 ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-16", name: "Syringe", unit: "กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-17", name: "Extension tube", unit: "ชิ้น", qty: 0, min_qty: 5 },
+                { id: "med-18", name: "Fixomull", unit: "ม้วน", qty: 0, min_qty: 5 },
+                { id: "med-19", name: "ถุงมือ size S", unit: "100ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-20", name: "ถุงมือ size M", unit: "100ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-21", name: "ถุงมือ size L", unit: "100ชิ้น/กล่อง", qty: 0, min_qty: 5 },
+                { id: "med-22", name: "ซองใสใส่ยา", unit: "แพ็ค", qty: 0, min_qty: 5 }
+            ],
+            "อุปกรณ์เครื่องใช้อื่นๆ": [
+                { id: "off-1", name: "กระดาษถ่ายเอกสาร A4 80gsm", unit: "รีม", qty: 0, min_qty: 5 },
+                { id: "off-2", name: "ปากกาลูกลื่น น้ำเงิน 0.5mm", unit: "ด้าม", qty: 0, min_qty: 5 },
+                { id: "off-3", name: "ปากกาไฮไลท์ สีสะท้อนแสง", unit: "ชุด (4 สี)", qty: 0, min_qty: 5 },
+                { id: "off-4", name: "แฟ้มแฟ้มห่วง A4 ชนิด 2 ห่วง", unit: "เล่ม", qty: 0, min_qty: 5 },
+                { id: "off-5", name: "คลิปหนีบกระดาษ ดำ 25mm", unit: "กล่อง", qty: 0, min_qty: 5 },
+                { id: "off-6", name: "ทิชชูเปียก", unit: "ห่อ", qty: 0, min_qty: 5 },
+                { id: "off-7", name: "ทิชชูแห้ง", unit: "ม้วน", qty: 0, min_qty: 5 },
+                { id: "off-8", name: "ถุงขยะแดง ขนาด 30x40 นิ้ว", unit: "แพ็ค", qty: 0, min_qty: 5 },
+                { id: "off-9", name: "ถุงขยะดำ ขนาด 30x40 นิ้ว", unit: "แพ็ค", qty: 0, min_qty: 5 }
+            ]
+        };
+
+        // App Global State
         let currentTab = 'dashboard';
-        let parsedImportData = [];
         let isSidebarOpen = false;
+        let inventoryData = JSON.parse(localStorage.getItem('stock_data')) || defaultInitialData;
+        let movementLogs = JSON.parse(localStorage.getItem('stock_logs')) || [];
+        let dbRef = null;
 
-        // Initialize App on Load
-        window.addEventListener('DOMContentLoaded', () => {
-            loadStorageData();
-            renderApp();
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.database();
+            dbRef = db.ref('stock_system');
+
+            // Listen to Realtime Database
+            dbRef.on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val && val.inventoryData) {
+                    inventoryData = val.inventoryData;
+                    movementLogs = val.movementLogs || [];
+                    saveToLocalStorage();
+                    updateUI();
+                    setConnectionStatus(true);
+                } else {
+                    // Seed initial data to Firebase
+                    syncToFirebase();
+                }
+            }, (error) => {
+                console.warn('Firebase connection notice:', error.message);
+                setConnectionStatus(false, 'โหมดออฟไลน์ (LocalStorage)');
+            });
+        } catch (e) {
+            console.warn('Firebase init fallback:', e);
+            setConnectionStatus(false, 'โหมดออฟไลน์ (LocalStorage)');
+        }
+
+        function setConnectionStatus(online, text = 'เชื่อมต่อ Realtime แล้ว') {
+            const el = document.getElementById('connectionStatus');
+            if (online) {
+                el.className = 'flex items-center space-x-2 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+                el.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>' + text + '</span>';
+            } else {
+                el.className = 'flex items-center space-x-2 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200';
+                el.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>' + text + '</span>';
+            }
+        }
+
+        function syncToFirebase() {
+            saveToLocalStorage();
+            if (dbRef) {
+                dbRef.set({
+                    inventoryData: inventoryData,
+                    movementLogs: movementLogs,
+                    updatedAt: new Date().toISOString()
+                }).catch(err => console.log('Firebase sync error:', err));
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('stock_data', JSON.stringify(inventoryData));
+            localStorage.setItem('stock_logs', JSON.stringify(movementLogs));
+        }
+
+        // Toggle Sidebar Drawer
+        const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        toggleSidebarBtn.addEventListener('click', () => {
+            isSidebarOpen = !isSidebarOpen;
+            if (isSidebarOpen) {
+                sidebar.classList.remove('sidebar-closed');
+                sidebar.classList.add('sidebar-open');
+                mainContent.classList.add('main-content-shifted');
+            } else {
+                sidebar.classList.remove('sidebar-open');
+                sidebar.classList.add('sidebar-closed');
+                mainContent.classList.remove('main-content-shifted');
+            }
         });
 
-        // Toggle Sidebar Drawer (Non-blocking: No dark backdrop, click background allowed)
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('main-content');
-            
-            isSidebarOpen = !isSidebarOpen;
-
-            if (isSidebarOpen) {
-                sidebar.classList.remove('-translate-x-full');
-                // Offset main content on larger screens so layout resizes smoothly
-                if (window.innerWidth >= 1024) {
-                    mainContent.classList.add('sidebar-open-layout');
-                }
-            } else {
-                sidebar.classList.add('-translate-x-full');
-                mainContent.classList.remove('sidebar-open-layout');
-            }
-        }
-
-        // Close Sidebar specifically for Mobile view
-        function closeSidebarOnMobile() {
-            if (window.innerWidth < 1024 && isSidebarOpen) {
-                toggleSidebar();
-            }
-        }
-
-        // Local Storage Methods
-        function loadStorageData() {
-            const savedItems = localStorage.getItem('stockmaster_items_v3');
-            const savedLogs = localStorage.getItem('stockmaster_logs_v3');
-
-            if (savedItems) {
-                try { items = JSON.parse(savedItems); } catch(e) { items = [...DEFAULT_ITEMS]; }
-            } else {
-                items = JSON.parse(JSON.stringify(DEFAULT_ITEMS));
-                saveItemsStorage();
-            }
-
-            if (savedLogs) {
-                try { movementLogs = JSON.parse(savedLogs); } catch(e) { movementLogs = []; }
-            }
-        }
-
-        function saveItemsStorage() {
-            localStorage.setItem('stockmaster_items_v3', JSON.stringify(items));
-        }
-
-        function saveLogsStorage() {
-            localStorage.setItem('stockmaster_logs_v3', JSON.stringify(movementLogs));
-        }
-
-        function resetToDefaultData() {
-            if (confirm('คุณต้องการรีเซ็ตข้อมูลสต็อกทั้งหมดกลับเป็นค่าเริ่มต้นจากไฟล์ Excel ใช่หรือไม่?')) {
-                items = JSON.parse(JSON.stringify(DEFAULT_ITEMS));
-                movementLogs = [];
-                saveItemsStorage();
-                saveLogsStorage();
-                renderApp();
-                showToast('รีเซ็ตข้อมูลตั้งต้นเรียบร้อยแล้ว', 'info');
-                closeSidebarOnMobile();
-            }
-        }
-
-        // Navigation Tab Switching
+        // Tab Switching
         function switchTab(tab) {
             currentTab = tab;
-
-            const tabs = ['dashboard', 'medical', 'office', 'movement'];
-            tabs.forEach(t => {
-                const btn = document.getElementById(`nav-${t}`);
-                if (btn) {
-                    if (t === tab) {
-                        btn.className = 'w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-blue-600 bg-blue-50 font-semibold';
-                    } else {
-                        btn.className = 'w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-medium text-sm transition-all text-slate-600 hover:bg-slate-100';
-                    }
-                }
+            
+            // Highlight sidebar
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-indigo-50', 'text-indigo-600', 'font-semibold');
             });
 
-            // Hide All Views
-            document.getElementById('view-dashboard').classList.add('hidden');
-            document.getElementById('view-inventory').classList.add('hidden');
-            document.getElementById('view-movement').classList.add('hidden');
+            // Hide all tab views
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+
+            const titleEl = document.getElementById('pageTitle');
+            const subEl = document.getElementById('pageSubtitle');
+            const actionsEl = document.getElementById('actionButtons');
+            actionsEl.innerHTML = '';
 
             if (tab === 'dashboard') {
+                document.getElementById('nav-dashboard').classList.add('bg-indigo-50', 'text-indigo-600', 'font-semibold');
                 document.getElementById('view-dashboard').classList.remove('hidden');
+                titleEl.textContent = 'ภาพรวมระบบ (Dashboard)';
+                subEl.textContent = 'สรุปสถานะสต็อกสินค้าและรายการทั้งหมด';
+            } else if (tab === 'เวชภัณฑ์' || tab === 'เครื่องใช้') {
+                const navKey = tab === 'เวชภัณฑ์' ? 'เวชภัณฑ์' : 'เครื่องใช้';
+                document.getElementById('nav-' + navKey).classList.add('bg-indigo-50', 'text-indigo-600', 'font-semibold');
+                document.getElementById('view-table').classList.remove('hidden');
+                
+                const catName = tab === 'เวชภัณฑ์' ? 'อุปกรณ์เวชภัณฑ์' : 'อุปกรณ์เครื่องใช้อื่นๆ';
+                titleEl.textContent = catName;
+                subEl.textContent = 'รายการสินค้าและการจัดการสต็อกในหมวด' + catName;
+
+                actionsEl.innerHTML = `
+                    <button onclick="openProductModal('${catName}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition flex items-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>เพิ่มสินค้าใหม่</span>
+                    </button>
+                `;
             } else if (tab === 'movement') {
+                document.getElementById('nav-movement').classList.add('bg-indigo-50', 'text-indigo-600', 'font-semibold');
                 document.getElementById('view-movement').classList.remove('hidden');
-                updateMovementItemOptions();
-                renderMovementLogs();
-            } else {
-                document.getElementById('view-inventory').classList.remove('hidden');
-
-                const catBadge = document.getElementById('cat-badge');
-                const catTitle = document.getElementById('cat-title');
-                const catDesc = document.getElementById('cat-desc');
-
-                if (tab === 'medical') {
-                    catBadge.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-teal-100 text-teal-800';
-                    catBadge.innerText = 'อุปกรณ์เวชภัณฑ์';
-                    catTitle.innerText = 'ตารางสต็อกเวชภัณฑ์';
-                    catDesc.innerText = 'รายการยา เข็ม ถุงมือ และอุปกรณ์ทางการแพทย์';
-                } else {
-                    catBadge.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-100 text-indigo-800';
-                    catBadge.innerText = 'อุปกรณ์เครื่องใช้อื่นๆ';
-                    catTitle.innerText = 'ตารางสต็อกเครื่องใช้อื่นๆ';
-                    catDesc.innerText = 'รายการอุปกรณ์สำนักงาน และเครื่องเขียนทั่วไป';
-                }
-
-                document.getElementById('search-input').value = '';
-                document.getElementById('status-filter').value = 'all';
+                titleEl.textContent = 'บันทึกรับเข้า - เบิกออก';
+                subEl.textContent = 'ลงบันทึกการรับสินค้าเข้าสต็อก หรือการเบิกใช้งานพร้อมบันทึกประวัติ';
+                populateProductDropdown();
             }
 
-            renderApp();
-            
-            // Auto close sidebar after selecting tab on mobile
-            closeSidebarOnMobile();
+            updateUI();
         }
 
-        // Render Master Helper
-        function renderApp() {
-            updateSidebarBadges();
-            if (currentTab === 'dashboard') renderDashboard();
-            else if (currentTab === 'movement') renderMovementLogs();
-            else renderInventoryTable();
+        // Render Functions
+        function updateUI() {
+            renderDashboard();
+            renderTable();
+            renderMovementHistory();
         }
 
-        function updateSidebarBadges() {
-            const medItems = items.filter(i => i.category === 'medical');
-            const offItems = items.filter(i => i.category === 'office');
-
-            document.getElementById('badge-medical').innerText = medItems.length;
-            document.getElementById('badge-office').innerText = offItems.length;
-
-            const reorderCount = items.filter(i => i.quantity < i.minQuantity).length;
-            const warningCount = items.filter(i => i.quantity >= i.minQuantity && i.quantity <= i.minQuantity * 1.2).length;
-
-            document.getElementById('quick-status-reorder').innerText = reorderCount;
-            document.getElementById('quick-status-warning').innerText = warningCount;
+        function getStatusInfo(qty, minQty) {
+            if (qty === 0) return { label: 'สินค้าหมด', badge: 'bg-rose-100 text-rose-700 border-rose-200', type: 'out' };
+            if (qty <= minQty) return { label: 'เหลือน้อย', badge: 'bg-amber-100 text-amber-700 border-amber-200', type: 'low' };
+            return { label: 'เพียงพอ', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', type: 'sufficient' };
         }
 
         function renderDashboard() {
-            const totalCount = items.length;
-            const reorderItems = items.filter(i => i.quantity < i.minQuantity);
-            const warningItems = items.filter(i => i.quantity >= i.minQuantity && i.quantity <= i.minQuantity * 1.2);
-            const normalItems = items.filter(i => i.quantity > i.minQuantity * 1.2);
+            let total = 0, suff = 0, low = 0, out = 0;
+            const lowItems = [];
 
-            document.getElementById('stat-total-items').innerText = totalCount;
-            document.getElementById('stat-normal-items').innerText = normalItems.length;
-            document.getElementById('stat-warning-items').innerText = warningItems.length;
-            document.getElementById('stat-reorder-items').innerText = reorderItems.length;
+            Object.keys(inventoryData).forEach(cat => {
+                inventoryData[cat].forEach(item => {
+                    total++;
+                    const st = getStatusInfo(item.qty, item.min_qty);
+                    if (st.type === 'sufficient') suff++;
+                    else if (st.type === 'low') {
+                        low++;
+                        lowItems.push({ ...item, category: cat, status: st });
+                    } else if (st.type === 'out') {
+                        out++;
+                        lowItems.push({ ...item, category: cat, status: st });
+                    }
+                });
+            });
 
-            const medItems = items.filter(i => i.category === 'medical');
-            document.getElementById('dash-med-total').innerText = medItems.length;
-            document.getElementById('dash-med-qty').innerText = medItems.reduce((a, b) => a + b.quantity, 0).toLocaleString();
-            document.getElementById('dash-med-alert').innerText = medItems.filter(i => i.quantity < i.minQuantity).length;
+            document.getElementById('dashTotalCount').textContent = total;
+            document.getElementById('dashSufficientCount').textContent = suff;
+            document.getElementById('dashLowCount').textContent = low;
+            document.getElementById('dashOutCount').textContent = out;
 
-            const offItems = items.filter(i => i.category === 'office');
-            document.getElementById('dash-off-total').innerText = offItems.length;
-            document.getElementById('dash-off-qty').innerText = offItems.reduce((a, b) => a + b.quantity, 0).toLocaleString();
-            document.getElementById('dash-off-alert').innerText = offItems.filter(i => i.quantity < i.minQuantity).length;
+            const alertContainer = document.getElementById('alertItemList');
+            alertContainer.innerHTML = '';
 
-            const alertContainer = document.getElementById('dashboard-alert-list');
-            const urgentItems = [...reorderItems, ...warningItems];
-
-            if (urgentItems.length === 0) {
-                alertContainer.innerHTML = `
-                    <div class="py-6 text-center text-slate-400 text-sm">
-                        <i class="fa-solid fa-circle-check text-emerald-500 text-2xl mb-2 block"></i>
-                        สินค้าทั้งหมดอยู่ในระดับปลอดภัย ไม่มีรายการต้องสั่งซื้อด่วน
-                    </div>
-                `;
+            if (lowItems.length === 0) {
+                alertContainer.innerHTML = '<div class="col-span-full text-slate-500 text-sm py-2">ไม่มีรายการสินค้าที่ต้องสั่งซื้อเพิ่มในขณะนี้</div>';
                 return;
             }
 
-            alertContainer.innerHTML = urgentItems.map(item => {
-                const isReorder = item.quantity < item.minQuantity;
-                const statusBadge = isReorder 
-                    ? `<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">ต้องสั่งซื้อเพิ่ม</span>`
-                    : `<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">ใกล้หมด</span>`;
-
-                return `
-                    <div class="py-3 flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-2 h-2 rounded-full ${isReorder ? 'bg-red-500' : 'bg-amber-500'}"></div>
-                            <div>
-                                <p class="font-medium text-slate-800 text-sm">${item.name}</p>
-                                <p class="text-xs text-slate-400">คงเหลือ ${item.quantity} ${item.unit} (จุดสั่งซื้อ ${item.minQuantity} ${item.unit})</p>
-                            </div>
-                        </div>
-                        <div>${statusBadge}</div>
+            lowItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-3.5 rounded-lg border border-amber-200 flex justify-between items-center shadow-sm';
+                card.innerHTML = `
+                    <div>
+                        <div class="font-bold text-sm text-slate-800">${item.name}</div>
+                        <div class="text-xs text-slate-500">${item.category} | คงเหลือ: <span class="font-bold text-rose-600">${item.qty}</span> ${item.unit} (ขั้นต่ำ ${item.min_qty})</div>
                     </div>
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full border ${item.status.badge}">${item.status.label}</span>
                 `;
-            }).join('');
+                alertContainer.appendChild(card);
+            });
         }
 
-        // Render Inventory Data Table
-        function renderInventoryTable() {
-            const tbody = document.getElementById('inventory-table-body');
-            const searchValue = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
-            const statusFilter = document.getElementById('status-filter')?.value || 'all';
+        function renderTable() {
+            if (currentTab !== 'เวชภัณฑ์' && currentTab !== 'เครื่องใช้') return;
 
-            let filtered = items.filter(item => item.category === currentTab);
+            const category = currentTab === 'เวชภัณฑ์' ? 'อุปกรณ์เวชภัณฑ์' : 'อุปกรณ์เครื่องใช้อื่นๆ';
+            const items = inventoryData[category] || [];
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filter = document.getElementById('statusFilter').value;
 
-            if (searchValue) {
-                filtered = filtered.filter(item => 
-                    item.name.toLowerCase().includes(searchValue) || 
-                    item.unit.toLowerCase().includes(searchValue)
-                );
-            }
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
 
-            if (statusFilter === 'sufficient') filtered = filtered.filter(i => i.quantity > i.minQuantity * 1.2);
-            else if (statusFilter === 'low') filtered = filtered.filter(i => i.quantity >= i.minQuantity && i.quantity <= i.minQuantity * 1.2);
-            else if (statusFilter === 'reorder') filtered = filtered.filter(i => i.quantity < i.minQuantity);
-
-            document.getElementById('summary-display-count').innerText = filtered.length;
-            document.getElementById('summary-total-qty').innerText = filtered.reduce((s, i) => s + Number(i.quantity), 0).toLocaleString();
+            const filtered = items.filter(item => {
+                const matchName = item.name.toLowerCase().includes(search);
+                const st = getStatusInfo(item.qty, item.min_qty);
+                const matchFilter = filter === 'all' || st.type === filter;
+                return matchName && matchFilter;
+            });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="py-8 text-center text-slate-400">
-                            <i class="fa-solid fa-box-open text-3xl mb-2 text-slate-300 block"></i>
-                            ไม่พบรายการสินค้าที่ตรงเงื่อนไข
-                        </td>
-                    </tr>
-                `;
+                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">ไม่พบรายการสินค้าที่ค้นหา</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = filtered.map((item, index) => {
-                let statusTag = '';
-                if (item.quantity < item.minQuantity) {
-                    statusTag = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5"></span>ต้องสั่งซื้อเพิ่ม
-                                 </span>`;
-                } else if (item.quantity <= item.minQuantity * 1.2) {
-                    statusTag = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>สต็อกใกล้หมด
-                                 </span>`;
-                } else {
-                    statusTag = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>เพียงพอ
-                                 </span>`;
-                }
-
-                return `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="py-3 px-4 text-xs font-medium text-slate-400">${index + 1}</td>
-                        <td class="py-3 px-4 font-medium text-slate-800">${item.name}</td>
-                        <td class="py-3 px-4 text-slate-500">${item.unit}</td>
-                        <td class="py-3 px-4 text-center font-bold text-slate-800">${item.quantity}</td>
-                        <td class="py-3 px-4 text-center font-medium text-slate-500">${item.minQuantity}</td>
-                        <td class="py-3 px-4 text-center">${statusTag}</td>
-                        <td class="py-3 px-4 text-center">
-                            <div class="flex items-center justify-center space-x-1">
-                                <button onclick="quickNavToMove(${item.id})" class="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="ปรับสต็อก">
-                                    <i class="fa-solid fa-right-left"></i>
-                                </button>
-                                <button onclick="openModal('edit', ${item.id})" class="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="แก้ไข">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </button>
-                                <button onclick="deleteItem(${item.id})" class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="ลบ">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
+            filtered.forEach((item, index) => {
+                const st = getStatusInfo(item.qty, item.min_qty);
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-slate-400 font-mono text-xs">${index + 1}</td>
+                    <td class="py-3 px-4 font-semibold text-slate-800">${item.name}</td>
+                    <td class="py-3 px-4 text-center text-slate-600">${item.unit || '-'}</td>
+                    <td class="py-3 px-4 text-right font-bold text-slate-800">${item.qty}</td>
+                    <td class="py-3 px-4 text-right text-slate-500">${item.min_qty}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-block text-xs font-semibold px-2.5 py-1 rounded-full border ${st.badge}">${st.label}</span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                            <button onclick="editProduct('${category}', '${item.id}')" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteProduct('${category}', '${item.id}')" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded transition"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
                 `;
-            }).join('');
+                tbody.appendChild(tr);
+            });
         }
 
-        function filterItems() { renderInventoryTable(); }
+        // Dropdown populator for stock movement form
+        function populateProductDropdown() {
+            const select = document.getElementById('moveProductSelect');
+            select.innerHTML = '';
 
-        function quickNavToMove(itemId) {
-            const item = items.find(i => i.id === itemId);
+            Object.keys(inventoryData).forEach(cat => {
+                const group = document.createElement('optgroup');
+                group.label = cat;
+                inventoryData[cat].forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = cat + '||' + item.id;
+                    opt.textContent = `${item.name} (คงเหลือ: ${item.qty} ${item.unit})`;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            });
+        }
+
+        // Handle Stock Movement (In/Out)
+        function handleMovementSubmit(e) {
+            e.preventDefault();
+            const selectedVal = document.getElementById('moveProductSelect').value;
+            if (!selectedVal) return;
+
+            const [cat, id] = selectedVal.split('||');
+            const type = document.querySelector('input[name="moveType"]:checked').value;
+            const qty = parseInt(document.getElementById('moveQty').value) || 0;
+            const note = document.getElementById('moveNote').value || '-';
+
+            const item = inventoryData[cat].find(i => i.id === id);
             if (!item) return;
-            switchTab('movement');
-            toggleMoveMode('manual');
-            document.getElementById('move-category').value = item.category;
-            updateMovementItemOptions();
-            document.getElementById('move-item-id').value = item.id;
-        }
 
-        function toggleMoveMode(mode) {
-            const btnManual = document.getElementById('mode-btn-manual');
-            const btnImport = document.getElementById('mode-btn-import');
-            const panelManual = document.getElementById('panel-manual-form');
-            const panelImport = document.getElementById('panel-import-form');
-
-            const logHeader = document.getElementById('log-header');
-            const importPreviewHeader = document.getElementById('import-preview-header');
-            const logTable = document.getElementById('history-log-table-wrapper');
-            const importPreviewTable = document.getElementById('import-preview-table-wrapper');
-
-            if (mode === 'manual') {
-                btnManual.className = 'flex-1 py-2 rounded-xl text-center transition-all bg-white text-slate-800 shadow-xs font-semibold';
-                btnImport.className = 'flex-1 py-2 rounded-xl text-center transition-all text-slate-600 hover:text-slate-900';
-                panelManual.classList.remove('hidden');
-                panelImport.classList.add('hidden');
-
-                logHeader.classList.remove('hidden');
-                logTable.classList.remove('hidden');
-                importPreviewHeader.classList.add('hidden');
-                importPreviewTable.classList.add('hidden');
-            } else {
-                btnImport.className = 'flex-1 py-2 rounded-xl text-center transition-all bg-white text-slate-800 shadow-xs font-semibold';
-                btnManual.className = 'flex-1 py-2 rounded-xl text-center transition-all text-slate-600 hover:text-slate-900';
-                panelImport.classList.remove('hidden');
-                panelManual.classList.add('hidden');
-
-                if (parsedImportData.length > 0) {
-                    logHeader.classList.add('hidden');
-                    logTable.classList.add('hidden');
-                    importPreviewHeader.classList.remove('hidden');
-                    importPreviewTable.classList.remove('hidden');
-                }
-            }
-        }
-
-        function updateMovementItemOptions() {
-            const category = document.getElementById('move-category').value;
-            const select = document.getElementById('move-item-id');
-            const catItems = items.filter(i => i.category === category);
-
-            select.innerHTML = catItems.map(i => 
-                `<option value="${i.id}">${i.name} (คงเหลือ: ${i.quantity} ${i.unit})</option>`
-            ).join('');
-        }
-
-        function handleMovementSubmit(event) {
-            event.preventDefault();
-
-            const itemId = parseInt(document.getElementById('move-item-id').value, 10);
-            const moveType = document.querySelector('input[name="move-type"]:checked').value;
-            const amount = parseInt(document.getElementById('move-amount').value, 10);
-            const note = document.getElementById('move-note').value.trim() || '-';
-
-            const itemIndex = items.findIndex(i => i.id === itemId);
-            if (itemIndex === -1) return;
-
-            const item = items[itemIndex];
-
-            if (moveType === 'out' && item.quantity < amount) {
-                alert(`จำนวนที่ต้องการเบิก (${amount} ${item.unit}) มากกว่าจำนวนคงเหลือที่มีอยู่ (${item.quantity} ${item.unit})`);
+            if (type === 'out' && item.qty < qty) {
+                alert(`จำนวนสินค้าในสต็อกไม่เพียงพอ (มีคงเหลือ ${item.qty} ${item.unit})`);
                 return;
             }
 
-            if (moveType === 'in') {
-                items[itemIndex].quantity += amount;
+            if (type === 'in') {
+                item.qty += qty;
             } else {
-                items[itemIndex].quantity -= amount;
+                item.qty -= qty;
             }
 
-            movementLogs.unshift({
+            // Append movement log
+            const log = {
                 timestamp: new Date().toLocaleString('th-TH'),
-                itemName: item.name,
+                type: type,
+                productName: item.name,
+                category: cat,
+                qty: qty,
                 unit: item.unit,
-                type: moveType,
-                amount: amount,
                 note: note
-            });
+            };
 
-            saveItemsStorage();
-            saveLogsStorage();
+            movementLogs.unshift(log);
+            if (movementLogs.length > 50) movementLogs.pop();
 
-            document.getElementById('move-amount').value = 1;
-            document.getElementById('move-note').value = '';
-
-            updateMovementItemOptions();
-            renderMovementLogs();
-            updateSidebarBadges();
-
-            showToast(`บันทึกการ${moveType === 'in' ? 'รับเข้า' : 'เบิกออก'} ${item.name} เรียบร้อย`, 'success');
+            syncToFirebase();
+            document.getElementById('moveQty').value = '';
+            document.getElementById('moveNote').value = '';
+            alert('บันทึกรายการเรียบร้อยแล้ว');
+            populateProductDropdown();
         }
 
-        async function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        function renderMovementHistory() {
+            const tbody = document.getElementById('movementHistoryBody');
+            tbody.innerHTML = '';
 
-            const fileName = file.name.toLowerCase();
-            showToast('กำลังอ่านไฟล์...', 'info');
-
-            try {
-                if (fileName.endsWith('.pdf')) {
-                    await parsePDFFile(file);
-                } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
-                    await parseExcelFile(file);
-                } else {
-                    alert('รองรับเฉพาะไฟล์ PDF, Excel (.xlsx/.xls) หรือ CSV เท่านั้น');
-                }
-            } catch (error) {
-                console.error(error);
-                alert('เกิดข้อผิดพลาดในการอ่านไฟล์ กรุณาตรวจสอบรูปแบบไฟล์อีกครั้ง');
-            }
-        }
-
-        async function parsePDFFile(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            let fullText = '';
-
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += pageText + '\n';
-            }
-
-            extractItemsFromText(fullText);
-        }
-
-        async function parseExcelFile(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-            let rawData = [];
-            jsonRows.forEach(row => {
-                if (row && row.length >= 2) {
-                    rawData.push(row.join(' '));
-                }
-            });
-
-            extractItemsFromText(rawData.join('\n'));
-        }
-
-        function extractItemsFromText(text) {
-            parsedImportData = [];
-
-            // Match against existing inventory items
-            items.forEach(existingItem => {
-                const cleanName = existingItem.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(`(${cleanName})\\s*(\\d+)`, 'i');
-                const match = text.match(regex);
-
-                if (match) {
-                    const qty = parseInt(match[2], 10);
-                    if (qty > 0 && !parsedImportData.some(p => p.itemId === existingItem.id)) {
-                        parsedImportData.push({
-                            itemId: existingItem.id,
-                            name: existingItem.name,
-                            unit: existingItem.unit,
-                            amount: qty,
-                            isNew: false,
-                            currentQty: existingItem.quantity
-                        });
-                    }
-                }
-            });
-
-            // Fallback parsing for new items
-            if (parsedImportData.length === 0) {
-                const regexFallback = /([ก-๙a-zA-Z0-9\s%\-\/\(\)]+)\s+(\d+)\s*([ก-๙a-zA-Z]+)?/g;
-                let match;
-                while ((match = regexFallback.exec(text)) !== null) {
-                    const name = match[1].trim();
-                    const qty = parseInt(match[2], 10);
-                    const unit = match[3] ? match[3].trim() : 'ชิ้น';
-
-                    if (name.length > 2 && qty > 0 && !parsedImportData.some(p => p.name === name)) {
-                        const existing = items.find(i => i.name.toLowerCase() === name.toLowerCase());
-                        parsedImportData.push({
-                            itemId: existing ? existing.id : null,
-                            name: existing ? existing.name : name,
-                            unit: existing ? existing.unit : unit,
-                            amount: qty,
-                            isNew: !existing,
-                            currentQty: existing ? existing.quantity : 0
-                        });
-                    }
-                }
-            }
-
-            if (parsedImportData.length === 0) {
-                alert('ไม่พบรายการสินค้าที่ตรงกันในเอกสาร กรุณาตรวจสอบว่ามีข้อความชื่อสินค้าและจำนวนตัวเลขตรงกัน');
+            if (movementLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">ยังไม่มีประวัติการทำรายการ</td></tr>';
                 return;
             }
 
-            renderImportPreview();
-            showToast(`อ่านไฟล์สำเร็จ พบ ${parsedImportData.length} รายการ`, 'success');
+            movementLogs.slice(0, 20).forEach(log => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                const isIn = log.type === 'in';
+                const typeBadge = isIn 
+                    ? '<span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">รับเข้า</span>'
+                    : '<span class="text-xs font-semibold px-2 py-0.5 rounded bg-rose-100 text-rose-700">เบิกออก</span>';
+                
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 text-slate-400 font-mono">${log.timestamp}</td>
+                    <td class="py-2.5 px-3">${typeBadge}</td>
+                    <td class="py-2.5 px-3 font-semibold text-slate-800">${log.productName}</td>
+                    <td class="py-2.5 px-3 text-right font-bold ${isIn ? 'text-emerald-600' : 'text-rose-600'}">${isIn ? '+' : '-'}${log.qty} ${log.unit}</td>
+                    <td class="py-2.5 px-3 text-slate-500">${log.note}</td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
-        function renderImportPreview() {
-            document.getElementById('log-header').classList.add('hidden');
-            document.getElementById('history-log-table-wrapper').classList.add('hidden');
-            document.getElementById('import-preview-header').classList.remove('hidden');
-            document.getElementById('import-preview-table-wrapper').classList.remove('hidden');
+        // Product CRUD Modals
+        function openProductModal(cat = 'อุปกรณ์เวชภัณฑ์', id = null) {
+            document.getElementById('modalProductId').value = id || '';
+            document.getElementById('modalCategory').value = cat;
 
-            const tbody = document.getElementById('import-preview-body');
-            tbody.innerHTML = parsedImportData.map((item, idx) => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="py-2.5 px-3 text-xs text-slate-400">${idx + 1}</td>
-                    <td class="py-2.5 px-3 font-medium text-slate-800 text-xs">
-                        ${item.name}
-                        ${item.isNew ? '<span class="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-700 font-semibold">สร้างรายการใหม่อัตโนมัติ</span>' : ''}
-                    </td>
-                    <td class="py-2.5 px-3 text-center text-xs text-slate-500">
-                        ${item.isNew ? '-' : item.currentQty + ' ' + item.unit}
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                        <input type="number" value="${item.amount}" min="1" onchange="updateImportAmount(${idx}, this.value)" class="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800">
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                        <button onclick="removeImportItem(${idx})" class="text-slate-400 hover:text-red-500 p-1">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function updateImportAmount(idx, val) {
-            if (parsedImportData[idx]) parsedImportData[idx].amount = parseInt(val, 10) || 1;
-        }
-
-        function removeImportItem(idx) {
-            parsedImportData.splice(idx, 1);
-            if (parsedImportData.length === 0) {
-                toggleMoveMode('manual');
+            if (id) {
+                const item = inventoryData[cat].find(i => i.id === id);
+                if (item) {
+                    document.getElementById('modalTitle').textContent = 'แก้ไขสินค้า';
+                    document.getElementById('modalName').value = item.name;
+                    document.getElementById('modalUnit').value = item.unit;
+                    document.getElementById('modalMinQty').value = item.min_qty;
+                    document.getElementById('modalQty').value = item.qty;
+                }
             } else {
-                renderImportPreview();
+                document.getElementById('modalTitle').textContent = 'เพิ่มสินค้าใหม่';
+                document.getElementById('modalName').value = '';
+                document.getElementById('modalUnit').value = '';
+                document.getElementById('modalMinQty').value = 5;
+                document.getElementById('modalQty').value = 0;
+            }
+
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').classList.add('hidden');
+        }
+
+        function handleProductSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('modalProductId').value;
+            const cat = document.getElementById('modalCategory').value;
+            const name = document.getElementById('modalName').value.trim();
+            const unit = document.getElementById('modalUnit').value.trim() || '-';
+            const minQty = parseInt(document.getElementById('modalMinQty').value) || 0;
+            const qty = parseInt(document.getElementById('modalQty').value) || 0;
+
+            if (id) {
+                // Edit existing
+                const item = inventoryData[cat].find(i => i.id === id);
+                if (item) {
+                    item.name = name;
+                    item.unit = unit;
+                    item.min_qty = minQty;
+                    item.qty = qty;
+                }
+            } else {
+                // Add new
+                const newId = 'prod-' + Date.now();
+                if (!inventoryData[cat]) inventoryData[cat] = [];
+                inventoryData[cat].push({
+                    id: newId,
+                    name: name,
+                    unit: unit,
+                    min_qty: minQty,
+                    qty: qty
+                });
+            }
+
+            syncToFirebase();
+            closeProductModal();
+        }
+
+        function editProduct(cat, id) {
+            openProductModal(cat, id);
+        }
+
+        function deleteProduct(cat, id) {
+            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการสินค้านี้?')) {
+                inventoryData[cat] = inventoryData[cat].filter(i => i.id !== id);
+                syncToFirebase();
             }
         }
 
-        function confirmImportBatch() {
-            if (parsedImportData.length === 0) return;
+        function resetDataToDefault() {
+            if (confirm('คุณต้องการรีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นจากไฟล์ Excel ใช่หรือไม่?')) {
+                inventoryData = JSON.parse(JSON.stringify(defaultInitialData));
+                movementLogs = [];
+                syncToFirebase();
+                alert('รีเซ็ตข้อมูลเรียบร้อยแล้ว');
+            }
+        }
 
-            const actionType = document.querySelector('input[name="import-action-type"]:checked').value;
-            const docRef = document.getElementById('import-doc-ref').value.trim() || 'นำเข้าจากไฟล์';
+        // Export to Excel File
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
 
-            let updatedCount = 0;
+            Object.keys(inventoryData).forEach(cat => {
+                const sheetData = [
+                    ['รายงานสตอค - ' + cat],
+                    ['ตารางติดตามและบริหารจัดการสตอคสินค้า (Inventory Management)'],
+                    [],
+                    ['รายการสินค้า', 'หน่วยนับ', 'คงเหลือ', 'จุดสั่งซื้อขั้นต่ำ', 'สถานะสตอค']
+                ];
 
-            parsedImportData.forEach(pItem => {
-                let targetItem = items.find(i => i.id === pItem.itemId || i.name.toLowerCase() === pItem.name.toLowerCase());
-
-                if (!targetItem) {
-                    const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
-                    targetItem = {
-                        id: newId,
-                        category: 'office',
-                        name: pItem.name,
-                        unit: pItem.unit,
-                        quantity: 0,
-                        minQuantity: 5
-                    };
-                    items.push(targetItem);
-                }
-
-                if (actionType === 'in') {
-                    targetItem.quantity += pItem.amount;
-                } else {
-                    targetItem.quantity = Math.max(0, targetItem.quantity - pItem.amount);
-                }
-
-                movementLogs.unshift({
-                    timestamp: new Date().toLocaleString('th-TH'),
-                    itemName: targetItem.name,
-                    unit: targetItem.unit,
-                    type: actionType,
-                    amount: pItem.amount,
-                    note: `[ไฟล์เอกสาร] ${docRef}`
+                inventoryData[cat].forEach(item => {
+                    const st = getStatusInfo(item.qty, item.min_qty);
+                    sheetData.push([item.name, item.unit, item.qty, item.min_qty, st.label]);
                 });
 
-                updatedCount++;
+                const ws = XLSX.utils.aoa_to_sheet(sheetData);
+                XLSX.utils.book_append_sheet(wb, ws, cat);
             });
 
-            saveItemsStorage();
-            saveLogsStorage();
-
-            parsedImportData = [];
-            document.getElementById('file-input').value = '';
-            document.getElementById('import-doc-ref').value = '';
-
-            toggleMoveMode('manual');
-            updateSidebarBadges();
-            renderMovementLogs();
-
-            showToast(`ปรับสต็อกจากไฟล์สำเร็จเรียบร้อย (${updatedCount} รายการ)`, 'success');
+            XLSX.writeFile(wb, 'รายงานสตอคสินค้า_' + new Date().toISOString().slice(0, 10) + '.xlsx');
         }
 
-        function renderMovementLogs() {
-            const tbody = document.getElementById('movement-history-body');
-            if (movementLogs.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="py-8 text-center text-slate-400 text-xs">
-                            ยังไม่มีประวัติการรับเข้าหรือเบิกออก
-                        </td>
-                    </tr>
-                `;
-                return;
+        // File Upload Handler (PDF & Excel Import)
+        async function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext === 'xlsx' || ext === 'xls') {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    let added = 0;
+
+                    workbook.SheetNames.forEach(sheetName => {
+                        const targetCat = sheetName.includes('เวชภัณฑ์') ? 'อุปกรณ์เวชภัณฑ์' : 'อุปกรณ์เครื่องใช้อื่นๆ';
+                        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                        
+                        json.forEach(row => {
+                            if (row.length >= 1 && row[0] && typeof row[0] === 'string' && !row[0].includes('รายงาน') && !row[0].includes('ตาราง') && !row[0].includes('รายการสินค้า')) {
+                                const name = row[0].trim();
+                                const unit = row[1] ? String(row[1]).trim() : '-';
+                                const qty = parseInt(row[2]) || 0;
+                                const minQty = parseInt(row[3]) || 5;
+
+                                const existing = inventoryData[targetCat].find(i => i.name === name);
+                                if (existing) {
+                                    existing.qty += qty;
+                                } else {
+                                    inventoryData[targetCat].push({
+                                        id: 'imp-' + Date.now() + Math.random().toString(36).substr(2, 4),
+                                        name: name,
+                                        unit: unit,
+                                        qty: qty,
+                                        min_qty: minQty
+                                    });
+                                }
+                                added++;
+                            }
+                        });
+                    });
+
+                    syncToFirebase();
+                    alert(`อัปโหลดไฟล์ Excel สำเร็จ! อัปเดตรายการสินค้าทั้งหมด ${added} รายการ`);
+                };
+                reader.readAsArrayBuffer(file);
+            } else if (ext === 'pdf') {
+                const reader = new FileReader();
+                reader.onload = async function(evt) {
+                    const typedarray = new Uint8Array(evt.target.result);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let fullText = '';
+
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        const pageText = textContent.items.map(item => item.str).join(' ');
+                        fullText += pageText + '\n';
+                    }
+
+                    alert('อ่านข้อมูลจากไฟล์ PDF สำเร็จ! (ประมวลผลข้อความ ' + fullText.length + ' ตัวอักษร)');
+                };
+                reader.readAsArrayBuffer(file);
             }
-
-            tbody.innerHTML = movementLogs.map(log => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="py-2.5 px-3 text-xs text-slate-400 whitespace-nowrap">${log.timestamp}</td>
-                    <td class="py-2.5 px-3 font-medium text-slate-800 text-xs">${log.itemName}</td>
-                    <td class="py-2.5 px-3 text-center">
-                        ${log.type === 'in' 
-                            ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-700">รับเข้า (+)</span>'
-                            : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-700">เบิกออก (-)</span>'
-                        }
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-bold text-xs ${log.type === 'in' ? 'text-emerald-600' : 'text-rose-600'}">
-                        ${log.type === 'in' ? '+' : '-'}${log.amount} ${log.unit}
-                    </td>
-                    <td class="py-2.5 px-3 text-xs text-slate-500">${log.note}</td>
-                </tr>
-            `).join('');
         }
 
-        function clearMovementLogs() {
-            if (confirm('ต้องการล้างประวัติการทำรายการทั้งหมดใช่หรือไม่?')) {
-                movementLogs = [];
-                saveLogsStorage();
-                renderMovementLogs();
-            }
-        }
-
-        function deleteItem(id) {
-            const item = items.find(i => i.id === id);
-            if (!item) return;
-
-            if (confirm(`คุณต้องการลบรายการ "${item.name}" ใช่หรือไม่?`)) {
-                items = items.filter(i => i.id !== id);
-                saveItemsStorage();
-                renderApp();
-                showToast(`ลบรายการ "${item.name}" แล้ว`, 'info');
-            }
-        }
-
-        function openModal(mode, id = null) {
-            const modal = document.getElementById('item-modal');
-            const modalTitle = document.getElementById('modal-title');
-            const form = document.getElementById('item-form');
-
-            form.reset();
-
-            if (mode === 'add') {
-                modalTitle.innerText = 'เพิ่มรายการสินค้าใหม่';
-                document.getElementById('modal-item-id').value = '';
-                document.getElementById('modal-item-category').value = currentTab === 'dashboard' ? 'medical' : currentTab;
-            } else if (mode === 'edit') {
-                modalTitle.innerText = 'แก้ไขรายการสินค้า';
-                const item = items.find(i => i.id === id);
-                if (item) {
-                    document.getElementById('modal-item-id').value = item.id;
-                    document.getElementById('modal-item-category').value = item.category;
-                    document.getElementById('modal-item-name').value = item.name;
-                    document.getElementById('modal-item-unit').value = item.unit;
-                    document.getElementById('modal-item-quantity').value = item.quantity;
-                    document.getElementById('modal-item-min').value = item.minQuantity;
-                }
-            }
-
-            modal.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('item-modal').classList.add('hidden');
-        }
-
-        function handleFormSubmit(event) {
-            event.preventDefault();
-
-            const idVal = document.getElementById('modal-item-id').value;
-            const category = document.getElementById('modal-item-category').value;
-            const name = document.getElementById('modal-item-name').value.trim();
-            const unit = document.getElementById('modal-item-unit').value.trim();
-            const quantity = parseInt(document.getElementById('modal-item-quantity').value, 10);
-            const minQuantity = parseInt(document.getElementById('modal-item-min').value, 10);
-
-            if (idVal) {
-                const id = parseInt(idVal, 10);
-                const index = items.findIndex(i => i.id === id);
-                if (index !== -1) {
-                    items[index] = { id, category, name, unit, quantity, minQuantity };
-                    showToast(`แก้ไข "${name}" เรียบร้อยแล้ว`, 'success');
-                }
-            } else {
-                const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
-                items.push({ id: newId, category, name, unit, quantity, minQuantity });
-                showToast(`เพิ่มสินค้า "${name}" สำเร็จ`, 'success');
-            }
-
-            saveItemsStorage();
-            closeModal();
-            renderApp();
-        }
-
-        function showToast(message, type = 'success') {
-            const toast = document.getElementById('toast-message');
-            const toastText = document.getElementById('toast-text');
-            const toastIcon = document.getElementById('toast-icon');
-
-            toastText.innerText = message;
-            toastIcon.className = type === 'success' 
-                ? 'fa-solid fa-circle-check text-emerald-400' 
-                : 'fa-solid fa-circle-info text-blue-400';
-
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
-        }
+        // Initialize App Dashboard view
+        switchTab('dashboard');
     </script>
-    <script>
-  // ค่า Config เฉพาะของโปรเจกต์คุณ (อ้างอิงจากคีย์ของคุณ)
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYPmr7XU-f4DF32rrgb3s8mWkvJXWUVc8",
-    authDomain: "stockmaster-app-82230.firebaseapp.com",
-    databaseURL: "https://stockmaster-app-82230-default-rtdb.firebaseio.com",
-    projectId: "stockmaster-app-82230",
-    storageBucket: "stockmaster-app-82230.firebasestorage.app",
-    messagingSenderId: "738518628930",
-    appId: "1:738518628930:web:98a870897191defc67cbdb",
-    measurementId: "G-FCKPX654NS"
-  };
-
-  // เริ่มต้นเชื่อมต่อ Firebase
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // ฟังก์ชันซิงค์ข้อมูลแบบ Real-time
-  function setupRealtimeListener() {
-      db.ref('stockmaster_items').on('value', (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-              items = data;
-          } else {
-              items = JSON.parse(JSON.stringify(DEFAULT_ITEMS));
-              saveItemsStorage();
-          }
-          if (typeof renderApp === 'function') renderApp();
-      });
-
-      db.ref('stockmaster_logs').on('value', (snapshot) => {
-          const data = snapshot.val();
-          movementLogs = data ? data : [];
-          if (typeof currentTab !== 'undefined' && currentTab === 'movement' && typeof renderMovementLogs === 'function') {
-              renderMovementLogs();
-          }
-          if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-      });
-  }
-
-  // ฟังก์ชันบันทึกข้อมูลขึ้น Cloud
-  function saveItemsStorage() {
-      db.ref('stockmaster_items').set(items);
-  }
-
-  function saveLogsStorage() {
-      db.ref('stockmaster_logs').set(movementLogs);
-  }
-
-  // เรียกทำงานเมื่อโหลดหน้าเว็บ
-  window.addEventListener('DOMContentLoaded', () => {
-      setupRealtimeListener();
-  });
-</script>
 </body>
 </html>
