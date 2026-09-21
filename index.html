@@ -585,11 +585,12 @@
     </div>
 
     <!-- Firebase Realtime Database SDK & Full Application Logic -->
+    <!-- Firebase Realtime Database SDK & Full Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // *** วางค่า Firebase Config ของคุณที่นี่ ***
+        // *** Firebase Config ***
         const firebaseConfig = {
             apiKey: "AIzaSyAYPmr7XU-f4DF32rrgb3s8mWkvJXWUVc8",
             authDomain: "stockmaster-app-82230.firebaseapp.com",
@@ -598,54 +599,11 @@
             storageBucket: "stockmaster-app-82230.appspot.com",
             messagingSenderId: "738518628930",
             appId: "1:738518628930:web:98a870897191defc67cbdb"
-  };
+        };
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        
-        // ฟังก์ชันส่งข้อมูลขึ้น Firebase
-function saveItemsToCloud(data) {
-    const stockRef = ref(db, 'stock_system/inventoryData');
-    set(stockRef, data)
-        .then(() => {
-            console.log("บันทึกข้อมูลลง Firebase เรียบร้อยแล้ว");
-        })
-        .catch((err) => {
-            console.error("เกิดข้อผิดพลาดในการบันทึก:", err);
-        });
-}
-        // 1. ฟังก์ชันดึงข้อมูลแบบ Realtime จาก Firebase (Path: stock_system/inventoryData)
-function initFirebaseSync() {
-    const stockRef = ref(db, 'stock_system/inventoryData');
-    onValue(stockRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            // เมื่อข้อมูลใน Firebase เปลี่ยนแปลง ให้อัปเดตตัวแปร inventory และวาดตารางใหม่
-            inventory = data;
-            if (typeof renderTable === 'function') {
-                renderTable();
-            }
-        }
-    });
-}
-
-// 2. ฟังก์ชันส่งข้อมูลไปบันทึกบน Firebase
-function saveItemsToCloud(data) {
-    const stockRef = ref(db, 'stock_system/inventoryData');
-    set(stockRef, data)
-        .then(() => {
-            console.log("บันทึกข้อมูลลง Firebase เรียบร้อยแล้ว");
-        })
-        .catch((err) => {
-            console.error("เกิดข้อผิดพลาดในการบันทึก:", err);
-        });
-}
-
-// เรียกทำงานทันทีเมื่อเปิดหน้าเว็บ
-document.addEventListener('DOMContentLoaded', () => {
-    initFirebaseSync();
-});
 
         // Initial Default Items Data
         const DEFAULT_ITEMS = [
