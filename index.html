@@ -1325,5 +1325,140 @@
             }, 3000);
         };
     </script>
+<!-- ========================================== -->
+<!-- ระบบส่งออกข้อมูลสต็อกสินค้าเป็น Excel (Add-on) -->
+<!-- ========================================== -->
+<script>
+    // 1. ฟังก์ชันสร้างและส่งออกไฟล์ Excel
+    function exportStockToExcel(exportType) {
+        if (!window.items || window.items.length === 0) {
+            alert('ไม่พบข้อมูลสินค้าสำหรับส่งออก');
+            return;
+        }
+
+        // โครงสร้างหัวตาราง (Header)
+        const headers = ['ลำดับ', 'หมวดหมู่', 'ชื่อรายการสินค้า', 'หน่วยนับ', 'จำนวนคงเหลือ', 'จุดสั่งขั้นต่ำ', 'สถานะสต็อก'];
+        
+        // ฟังก์ชันช่วยจัดรูปแบบข้อมูลเป็น Array Row
+        const formatRow = (item, index) => {
+            let statusText = 'เพียงพอ';
+            if (item.quantity < item.minQuantity) {
+                statusText = 'ต้องสั่งซื้อเพิ่ม';
+            } else if (item.quantity <= item.minQuantity * 1.2) {
+                statusText = 'สต็อกใกล้หมด';
+            }
+
+            const categoryName = item.category === 'medical' ? 'อุปกรณ์เวชภัณฑ์' : 'อุปกรณ์เครื่องใช้อื่นๆ';
+
+            return [
+                index + 1,
+                categoryName,
+                item.name,
+                item.unit,
+                item.quantity,
+                item.minQuantity,
+                statusText
+            ];
+        };
+
+        // สร้าง Workbook ใหม่ด้วย SheetJS (XLSX library ที่มีอยู่ในระบบเดิม)
+        const wb = XLSX.utils.book_new();
+
+        if (exportType === 'alert') {
+            // ----- กรณีที่ 1: ส่งออกเฉพาะรายการที่ต้องเร่งสั่งซื้อ / เฝ้าระวัง -----
+            const alertItems = window.items.filter(i => i.quantity <= i.minQuantity * 1.2);
+            if (alertItems.length === 0) {
+                alert('ไม่มีรายการที่ต้องเร่งสั่งซื้อหรือเฝ้าระวังในขณะนี้');
+                return;
+            }
+
+            const rows = [headers, ...alertItems.map((item, index) => formatRow(item, index))];
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(wb, ws, "รายการต้องสั่งซื้อ-เฝ้าระวัง");
+            
+            // ส่งออกไฟล์ Excel
+            const filename = `Stock_Alert_Report_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, filename);
+
+        } else {
+            // ----- กรณีที่ 2: ส่งออกข้อมูลทั้งหมด แยกตามหมวดหมู่ -----
+            // 2.1 แผ่นงานเวชภัณฑ์
+            const medItems = window.items.filter(i => i.category === 'medical');
+            const medRows = [headers, ...medItems.map((item, index) => formatRow(item, index))];
+            const wsMed = XLSX.utils.aoa_to_sheet(medRows);
+            XLSX.utils.book_append_sheet(wb, wsMed, "อุปกรณ์เวชภัณฑ์");
+
+            // 2.2 แผ่นงานเครื่องใช้อื่นๆ
+            const offItems = window.items.filter(i => i.category === 'office');
+            const offRows = [headers, ...offItems.map((item, index) => formatRow(item, index))];
+            const wsOff = XLSX.utils.aoa_to_sheet(offRows);
+            XLSX.utils.book_append_sheet(wb, wsOff, "อุปกรณ์เครื่องใช้อื่นๆ");
+
+            // 2.3 แผ่นงานรายการเตือนด่วน (เร่งสั่งซื้อ/เฝ้าระวัง)
+            const alertItems = window.items.filter(i => i.quantity <= i.minQuantity * 1.2);
+            if (alertItems.length > 0) {
+                const alertRows = [headers, ...alertItems.map((item, index) => formatRow(item, index))];
+                const wsAlert = XLSX.utils.aoa_to_sheet(alertRows);
+                XLSX.utils.book_append_sheet(wb, wsAlert, "รายการต้องสั่งซื้อ-เฝ้าระวัง");
+            }
+
+            // ส่งออกไฟล์ Excel สรุปรวม
+            const filename = `Stock_Full_Report_${new Date().toISOString().slice(0,10)}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+
+        if (window.showToast) {
+            window.showToast('ส่งออกไฟล์ Excel เรียบร้อยแล้ว', 'success');
+        }
+    }
+
+    // 2. DOM Injection เพื่อแทรกปุ่มดาวน์โหลดลงในหน้า UI โดยไม่ต้องแก้ไข HTML เดิม
+    document.addEventListener('DOMContentLoaded', function() {
+        // แทรกปุ่มในหน้า Dashboard (ภาพรวมสต็อกสินค้า)
+        const dashboardAlertSection = document.querySelector('#view-dashboard .bg-white.rounded-2xl.border.p-6');
+        if (dashboardAlertSection) {
+            const headerContainer = dashboardAlertSection.querySelector('h3');
+            if (headerContainer) {
+                // เปลี่ยนโครงสร้าง Header เพื่อใส่ปุ่ม
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4';
+                
+                headerContainer.parentNode.insertBefore(wrapper, headerContainer);
+                wrapper.appendChild(headerContainer);
+
+                // สร้างปุ่ม Export สำหรับ Dashboard
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'flex items-center space-x-2';
+                btnGroup.innerHTML = `
+                    <button onclick="exportStockToExcel('alert')" class="inline-flex items-center space-x-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 px-3 py-1.5 rounded-xl border border-amber-200 transition-all font-medium">
+                        <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                        <span>ส่งออกรายการเฝ้าระวัง (.xlsx)</span>
+                    </button>
+                    <button onclick="exportStockToExcel('all')" class="inline-flex items-center space-x-1.5 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 transition-all font-medium">
+                        <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                        <span>ส่งออกสต็อกทั้งหมด (.xlsx)</span>
+                    </button>
+                `;
+                wrapper.appendChild(btnGroup);
+            }
+        }
+
+        // แทรกปุ่มในหน้า Inventory (หมวดหมู่เวชภัณฑ์ และ อุปกรณ์อื่นๆ)
+        const inventoryHeader = document.querySelector('#view-inventory > div.flex');
+        if (inventoryHeader) {
+            const btnContainer = inventoryHeader.querySelector('.flex.items-center.space-x-2');
+            if (btnContainer) {
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-emerald-100 transition-all text-sm';
+                exportBtn.onclick = function() { exportStockToExcel('all'); };
+                exportBtn.innerHTML = `
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>ส่งออก Excel</span>
+                `;
+                btnContainer.prepend(exportBtn);
+            }
+        }
+    });
+</script>
 </body>
 </html>
