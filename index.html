@@ -1361,7 +1361,7 @@
             ];
         };
 
-        // สร้าง Workbook ใหม่ด้วย SheetJS (XLSX library ที่มีอยู่ในระบบเดิม)
+        // สร้าง Workbook ใหม่ด้วย SheetJS
         const wb = XLSX.utils.book_new();
 
         if (exportType === 'alert') {
@@ -1412,38 +1412,29 @@
         }
     }
 
-    // 2. DOM Injection เพื่อแทรกปุ่มดาวน์โหลดลงในหน้า UI โดยไม่ต้องแก้ไข HTML เดิม
+    // 2. DOM Injection เพื่อแทรกปุ่มดาวน์โหลดไว้ที่มุมขวาบนของ Dashboard
     document.addEventListener('DOMContentLoaded', function() {
-        // แทรกปุ่มในหน้า Dashboard (ภาพรวมสต็อกสินค้า)
-        const dashboardAlertSection = document.querySelector('#view-dashboard .bg-white.rounded-2xl.border.p-6');
-        if (dashboardAlertSection) {
-            const headerContainer = dashboardAlertSection.querySelector('h3');
-            if (headerContainer) {
-                // เปลี่ยนโครงสร้าง Header เพื่อใส่ปุ่ม
-                const wrapper = document.createElement('div');
-                wrapper.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4';
-                
-                headerContainer.parentNode.insertBefore(wrapper, headerContainer);
-                wrapper.appendChild(headerContainer);
+// แทรกปุ่มที่มุมขวาบนของ Dashboard (ส่วนหัวข้อ ภาพรวมสต็อกสินค้า)
+        const dashboardHeader = document.querySelector('#view-dashboard > div.mb-8');
+        if (dashboardHeader) {
+            dashboardHeader.classList.add('flex', 'flex-col', 'md:flex-row', 'md:items-center', 'justify-between', 'gap-4');
 
-                // สร้างปุ่ม Export สำหรับ Dashboard
-                const btnGroup = document.createElement('div');
-                btnGroup.className = 'flex items-center space-x-2';
-                btnGroup.innerHTML = `
-                    <button onclick="exportStockToExcel('alert')" class="inline-flex items-center space-x-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 px-3 py-1.5 rounded-xl border border-amber-200 transition-all font-medium">
-                        <i class="fa-solid fa-file-excel text-emerald-600"></i>
-                        <span>ส่งออกรายการเฝ้าระวัง (.xlsx)</span>
-                    </button>
-                    <button onclick="exportStockToExcel('all')" class="inline-flex items-center space-x-1.5 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 transition-all font-medium">
-                        <i class="fa-solid fa-file-excel text-emerald-600"></i>
-                        <span>ส่งออกสต็อกทั้งหมด (.xlsx)</span>
-                    </button>
-                `;
-                wrapper.appendChild(btnGroup);
-            }
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'flex items-center space-x-2 shrink-0';
+            btnGroup.innerHTML = `
+                <button onclick="exportStockToExcel('alert')" class="inline-flex items-center space-x-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 px-3.5 py-2 rounded-xl border border-amber-200 shadow-sm transition-all font-medium">
+                    <i class="fa-solid fa-file-excel text-emerald-600 text-sm"></i>
+                    <span>ส่งออกรายการเฝ้าระวัง (.xlsx)</span>
+                </button>
+                <button onclick="exportStockToExcel('all')" class="inline-flex items-center space-x-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition-all font-medium">
+                    <i class="fa-solid fa-file-excel text-sm"></i>
+                    <span>ส่งออกสต็อกทั้งหมด (.xlsx)</span>
+                </button>
+            `;
+            dashboardHeader.appendChild(btnGroup);
         }
 
-        // แทรกปุ่มในหน้า Inventory (หมวดหมู่เวชภัณฑ์ และ อุปกรณ์อื่นๆ)
+        // แทรกปุ่มในหน้า Inventory
         const inventoryHeader = document.querySelector('#view-inventory > div.flex');
         if (inventoryHeader) {
             const btnContainer = inventoryHeader.querySelector('.flex.items-center.space-x-2');
