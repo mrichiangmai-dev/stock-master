@@ -1412,19 +1412,15 @@
         }
     }
 
-    // 2. DOM Injection เพื่อแทรกปุ่มดาวน์โหลดไว้ที่มุมขวาบนของ Dashboard
+// 2. DOM Injection เพื่อแทรกปุ่มดาวน์โหลดไว้กลุ่มเดียวกับปุ่มด้านขวา
     document.addEventListener('DOMContentLoaded', function() {
-        // ค้นหา Element ส่วนหัวของ Dashboard (ภาพรวมสต็อกสินค้า)
+        // --- 2.1 แทรกปุ่มที่มุมขวาบนของ Dashboard ---
         const dashboardView = document.getElementById('view-dashboard');
         if (dashboardView) {
-            // ค้นหา div บล็อกแรกสุดใน view-dashboard ที่เก็บหัวข้อ
             const headerBlock = dashboardView.querySelector('div');
-            
             if (headerBlock && !document.getElementById('export-btn-group')) {
-                // ปรับ CSS ของส่วนหัวให้จัดวางแบบ Flexbox
                 headerBlock.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8';
 
-                // สร้างกลุ่มปุ่มส่งออก Excel
                 const btnGroup = document.createElement('div');
                 btnGroup.id = 'export-btn-group';
                 btnGroup.className = 'flex items-center space-x-2 shrink-0';
@@ -1438,17 +1434,19 @@
                         <span>ส่งออกสต็อกทั้งหมด (.xlsx)</span>
                     </button>
                 `;
-                
-                // นำปุ่มไปวางไว้ต่อท้ายข้อความหัวข้อ
                 headerBlock.appendChild(btnGroup);
             }
         }
 
-        // แทรกปุ่มในหน้า Inventory (ตารางสินค้า)
-        const inventoryHeader = document.querySelector('#view-inventory > div.flex');
+        // --- 2.2 แทรกปุ่มในหน้า ตารางสต็อกสินค้า (ย้ายไปอยู่ข้างปุ่มด้านขวา) ---
+        const inventoryHeader = document.querySelector('#view-inventory > div');
         if (inventoryHeader) {
-            const btnContainer = inventoryHeader.querySelector('.flex.items-center.space-x-2');
-            if (btnContainer && !document.getElementById('inventory-export-btn')) {
+            // ค้นหา div กลุ่มปุ่มด้านขวาที่มีปุ่มรับเข้า/เบิกออก และ เพิ่มสินค้าใหม่
+            const rightBtnGroup = inventoryHeader.querySelector('.flex.items-center.space-x-3') || 
+                                  inventoryHeader.querySelector('.flex.items-center.gap-3') ||
+                                  inventoryHeader.querySelector('div:last-child');
+
+            if (rightBtnGroup && !document.getElementById('inventory-export-btn')) {
                 const exportBtn = document.createElement('button');
                 exportBtn.id = 'inventory-export-btn';
                 exportBtn.type = 'button';
@@ -1458,7 +1456,9 @@
                     <i class="fa-solid fa-file-excel"></i>
                     <span>ส่งออก Excel</span>
                 `;
-                btnContainer.prepend(exportBtn);
+                
+                // วางไว้หน้าสุดของกลุ่มปุ่มทางด้านขวา (ข้างซ้ายของปุ่ม รับเข้า/เบิกออก)
+                rightBtnGroup.prepend(exportBtn);
             }
         }
     });
