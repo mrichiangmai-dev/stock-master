@@ -1414,33 +1414,45 @@
 
     // 2. DOM Injection เพื่อแทรกปุ่มดาวน์โหลดไว้ที่มุมขวาบนของ Dashboard
     document.addEventListener('DOMContentLoaded', function() {
-// แทรกปุ่มที่มุมขวาบนของ Dashboard (ส่วนหัวข้อ ภาพรวมสต็อกสินค้า)
-        const dashboardHeader = document.querySelector('#view-dashboard > div.mb-8');
-        if (dashboardHeader) {
-            dashboardHeader.classList.add('flex', 'flex-col', 'md:flex-row', 'md:items-center', 'justify-between', 'gap-4');
+        // ค้นหา Element ส่วนหัวของ Dashboard (ภาพรวมสต็อกสินค้า)
+        const dashboardView = document.getElementById('view-dashboard');
+        if (dashboardView) {
+            // ค้นหา div บล็อกแรกสุดใน view-dashboard ที่เก็บหัวข้อ
+            const headerBlock = dashboardView.querySelector('div');
+            
+            if (headerBlock && !document.getElementById('export-btn-group')) {
+                // ปรับ CSS ของส่วนหัวให้จัดวางแบบ Flexbox
+                headerBlock.className = 'flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8';
 
-            const btnGroup = document.createElement('div');
-            btnGroup.className = 'flex items-center space-x-2 shrink-0';
-            btnGroup.innerHTML = `
-                <button onclick="exportStockToExcel('alert')" class="inline-flex items-center space-x-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 px-3.5 py-2 rounded-xl border border-amber-200 shadow-sm transition-all font-medium">
-                    <i class="fa-solid fa-file-excel text-emerald-600 text-sm"></i>
-                    <span>ส่งออกรายการเฝ้าระวัง (.xlsx)</span>
-                </button>
-                <button onclick="exportStockToExcel('all')" class="inline-flex items-center space-x-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition-all font-medium">
-                    <i class="fa-solid fa-file-excel text-sm"></i>
-                    <span>ส่งออกสต็อกทั้งหมด (.xlsx)</span>
-                </button>
-            `;
-            dashboardHeader.appendChild(btnGroup);
+                // สร้างกลุ่มปุ่มส่งออก Excel
+                const btnGroup = document.createElement('div');
+                btnGroup.id = 'export-btn-group';
+                btnGroup.className = 'flex items-center space-x-2 shrink-0';
+                btnGroup.innerHTML = `
+                    <button type="button" onclick="exportStockToExcel('alert')" class="inline-flex items-center space-x-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 px-3.5 py-2 rounded-xl border border-amber-200 shadow-sm transition-all font-medium cursor-pointer">
+                        <i class="fa-solid fa-file-excel text-emerald-600 text-sm"></i>
+                        <span>ส่งออกรายการเฝ้าระวัง (.xlsx)</span>
+                    </button>
+                    <button type="button" onclick="exportStockToExcel('all')" class="inline-flex items-center space-x-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl shadow-sm transition-all font-medium cursor-pointer">
+                        <i class="fa-solid fa-file-excel text-sm"></i>
+                        <span>ส่งออกสต็อกทั้งหมด (.xlsx)</span>
+                    </button>
+                `;
+                
+                // นำปุ่มไปวางไว้ต่อท้ายข้อความหัวข้อ
+                headerBlock.appendChild(btnGroup);
+            }
         }
 
-        // แทรกปุ่มในหน้า Inventory
+        // แทรกปุ่มในหน้า Inventory (ตารางสินค้า)
         const inventoryHeader = document.querySelector('#view-inventory > div.flex');
         if (inventoryHeader) {
             const btnContainer = inventoryHeader.querySelector('.flex.items-center.space-x-2');
-            if (btnContainer) {
+            if (btnContainer && !document.getElementById('inventory-export-btn')) {
                 const exportBtn = document.createElement('button');
-                exportBtn.className = 'inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-emerald-100 transition-all text-sm';
+                exportBtn.id = 'inventory-export-btn';
+                exportBtn.type = 'button';
+                exportBtn.className = 'inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-emerald-100 transition-all text-sm cursor-pointer';
                 exportBtn.onclick = function() { exportStockToExcel('all'); };
                 exportBtn.innerHTML = `
                     <i class="fa-solid fa-file-excel"></i>
