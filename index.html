@@ -306,12 +306,6 @@
                             <i class="fa-solid fa-plus"></i>
                             <span>เพิ่มสินค้าใหม่</span>
                         </button>
-                        <button onclick="exportExpertExcel()" class="inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-md transition-all cursor-pointer">
-    <i class="fa-solid fa-file-excel text-lg"></i>
-    <span>ส่งออก Expert Excel</span>
-</button>
-    </div>
-</div>
                     </div>
                 </div>
 
@@ -592,10 +586,6 @@
 
     <!-- Firebase Realtime Database SDK & Full Application Logic -->
     <!-- Firebase Realtime Database SDK & Full Application Logic -->
-    <!-- ไลบรารีสำหรับสร้างไฟล์ Excel (SheetJS) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-<!-- Firebase Realtime Database SDK & Full Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -1334,73 +1324,6 @@
                 toast.classList.add('translate-y-20', 'opacity-0');
             }, 3000);
         };
-        // ฟังก์ชันส่งออกรายงาน Expert Excel
-window.exportExpertExcel = function() {
-    // ดึงข้อมูลสินค้า (ใช้ข้อมูลปัจจุบันจากตัวแปร items หรือ DEFAULT_ITEMS)
-    const itemsData = window.items || DEFAULT_ITEMS || [];
-    
-    if (itemsData.length === 0) {
-        alert('ไม่พบข้อมูลสินค้าสำหรับส่งออก');
-        return;
-    }
-
-    // ฟังก์ชันจัดรูปแบบบรรทัดข้อมูลในตาราง
-    const mapItemsToRows = (itemList) => {
-        return itemList.map((item, index) => {
-            let status = 'ปกติ (เพียงพอ)';
-            if (item.quantity < item.minQuantity) {
-                status = '🚨 ต้องสั่งซื้อเพิ่ม';
-            } else if (item.quantity <= item.minQuantity * 1.2) {
-                status = '⚠️ เฝ้าระวัง/ใกล้หมด';
-            }
-
-            const categoryName = item.category === 'medical' ? 'อุปกรณ์เวชภัณฑ์' : 'อุปกรณ์เครื่องใช้อื่นๆ';
-            const reorderQty = item.quantity < item.minQuantity ? Math.max(item.minQuantity * 2 - item.quantity, 0) : 0;
-
-            return {
-                'ลำดับ': index + 1,
-                'หมวดหมู่': categoryName,
-                'รายการสินค้า': item.name,
-                'จำนวนคงเหลือ': item.quantity,
-                'หน่วยนับ': item.unit,
-                'จุดสั่งซื้อขั้นต่ำ': item.minQuantity,
-                'จำนวนแนะนำสั่งซื้อเพิ่ม': reorderQty,
-                'สถานะสต็อก': status
-            };
-        });
-    };
-
-    // คัดกรองข้อมูลแยกตามเงื่อนไข
-    const urgentItems = itemsData.filter(i => i.quantity <= i.minQuantity * 1.2);
-    const medicalItems = itemsData.filter(i => i.category === 'medical');
-    const officeItems = itemsData.filter(i => i.category === 'office');
-
-    // สร้าง Workbook
-    const wb = XLSX.utils.book_new();
-
-    // สร้าง Sheet 1: รายการเร่งสั่งซื้อ/เฝ้าระวัง
-    const wsUrgent = XLSX.utils.json_to_sheet(mapItemsToRows(urgentItems));
-    XLSX.utils.book_append_sheet(wb, wsUrgent, "เร่งสั่งซื้อ_เฝ้าระวัง");
-
-    // สร้าง Sheet 2: อุปกรณ์เวชภัณฑ์
-    const wsMedical = XLSX.utils.json_to_sheet(mapItemsToRows(medicalItems));
-    XLSX.utils.book_append_sheet(wb, wsMedical, "อุปกรณ์เวชภัณฑ์");
-
-    // สร้าง Sheet 3: อุปกรณ์เครื่องใช้
-    const wsOffice = XLSX.utils.json_to_sheet(mapItemsToRows(officeItems));
-    XLSX.utils.book_append_sheet(wb, wsOffice, "อุปกรณ์เครื่องใช้");
-
-    // ปรับความกว้างคอลัมน์ให้อ่านง่าย
-    const colWidths = [
-        { wch: 6 },  { wch: 20 }, { wch: 35 }, { wch: 15 },
-        { wch: 10 }, { wch: 18 }, { wch: 22 }, { wch: 22 }
-    ];
-    [wsUrgent, wsMedical, wsOffice].forEach(ws => ws['!cols'] = colWidths);
-
-    // ดาวน์โหลดไฟล์ Excel
-    const today = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `รายงานสต็อกสินค้า_Expert_${today}.xlsx`);
-};
     </script>
 </body>
 </html>
